@@ -1,0 +1,9 @@
+[openai]
+api_base = "http://localhost:11434/v1"
+api_key = "ollama"
+model_name = "rabbit"
+temperature = 0.2
+top_p = 0.9
+
+[bert]
+model_name = "bert-base-uncased"
