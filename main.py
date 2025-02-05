@@ -2,12 +2,14 @@ import os
 import sys
 import json
 import toml
+import jieba
 import datetime
 from  reader.reader import DocumentReader
 from RAG.faiss_indexer import FaissIndexer
 from generator.embedding import Embedding
 from generator.response_generator import ResponseGenerator
 from filter.context_filter import ContextFilter
+from filter.keyword_detection import KeywordDetector
 
 #读取配置文件
 config = toml.load("config/parameter.toml")
@@ -85,6 +87,7 @@ def main():
      tick_count = 0
 
      filter_context = ContextFilter(openai_model_name, client)
+     keyword_set = KeywordDetector(file_chinese_stopwords = "docs/scu_stopwords.txt", file_key_words = "docs/key_words.txt")
      answer_generator = ResponseGenerator(openai_model_name, temperature, top_p, client)
 
      #开始记录日志
@@ -96,7 +99,9 @@ def main():
           user_input = input("请输入你的问题(输入'q'退出): ")
           if user_input.lower() == "q":
                  break
-          
+          #关键词分类问题类型
+          user_input_word = set(jieba.lcut(user_input))
+          judgment_outcome = bool(user_input_word & keyword_set.keyword_detection())
           #生成输入的向量
           input_embedding = embedding_generator.get_embedding(user_input)
           #搜索索引
@@ -105,11 +110,12 @@ def main():
           if index is None:
             print("索引未建立,无法搜索")
             continue
-          unique_id = faiss_indexer.search_index(input_embedding)
-        #   if unique_id is None:
-        #     relevant_context = []
-        #   else:
-          relevant_context = list(set([paragraphs[i] for i in unique_id]))           
+          unique_id = faiss_indexer.search_index(input_embedding, top_k = 5)
+          #对rag使用进行判断
+          if judgment_outcome:
+               relevant_context = list(set([paragraphs[i] for i in unique_id]))
+          else:
+               relevant_context = []
           #生成回答
           answer, prompt = answer_generator.generate_response(user_input, relevant_context, conversation_history, return_prompt=True)
           #打印回答
