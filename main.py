@@ -10,6 +10,9 @@ from generator.embedding import Embedding
 from generator.response_generator import ResponseGenerator
 from filter.context_filter import ContextFilter
 from filter.keyword_detection import KeywordDetector
+from naive_bayes_model.naive_bayes_classifier import NaiveBayesClassifier
+from naive_bayes_model.train_data.train_data import data
+
 
 #读取配置文件
 config = toml.load("config/parameter.toml")
@@ -94,14 +97,32 @@ def main():
      if debug_mode:
           log_file = f"logs/{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.txt"
 
-     while True:
+     #朴素贝叶斯分类
+     classifier = NaiveBayesClassifier()
+     model_path = "./naive_bayes_model/saved_model/naive_bayes_model.pkl"
+     vectorizer_path = "./naive_bayes_model/saved_vectorizer/naive_bayes_vectorizer.pkl"
+     train_data_path = data
+
+     #加载或训练模型
+     if not os.path.exists(model_path) and not os.path.exists(vectorizer_path):
+          classifier.train(train_data_path)
+          classifier.save_model(model_path=model_path, vectorizer_path=vectorizer_path)
+     else:
+      classifier.load_model(model_path, vectorizer_path)
+
+      while True:
           #读取用户输入
           user_input = input("请输入你的问题(输入'q'退出): ")
           if user_input.lower() == "q":
                  break
+          
           #关键词分类问题类型
           user_input_word = set(jieba.lcut(user_input))
           judgment_outcome = bool(user_input_word & keyword_set.keyword_detection())
+
+          #朴素贝叶斯分类预测问题类型
+          predicted_label = classifier.predict(user_input)
+
           #生成输入的向量
           input_embedding = embedding_generator.get_embedding(user_input)
           #搜索索引
@@ -112,19 +133,29 @@ def main():
             continue
           unique_id = faiss_indexer.search_index(input_embedding, top_k = 5)
           #对rag使用进行判断
-          if judgment_outcome:
-               relevant_context = list(set([paragraphs[i] for i in unique_id]))
-          else:
-               relevant_context = []
+          if  judgment_outcome:
+               if predicted_label == 1:
+                 relevant_context = list(set([paragraphs[i] for i in unique_id]))
+               elif predicted_label == 0:
+                   relevant_context = []
+          elif judgment_outcome == False:
+               if predicted_label == 1:
+                   relevant_context = list(set([paragraphs[i] for i in unique_id]))
+               elif predicted_label == 0:
+                   relevant_context = []
+
+          if debug_mode:
+             print(f"预测标签:{predicted_label}")
+
           #生成回答
           answer, prompt = answer_generator.generate_response(user_input, relevant_context, conversation_history, return_prompt=True)
           #打印回答
           print(answer)
           #更新对话历史
           conversation_history.append((user_input, answer))
-          #每十次筛选一次上下文
+          #每三次筛选一次上下文
           answer_count += 1
-          if answer_count % 10 == 0:
+          if answer_count % 3 == 0:
              conversation_history = filter_context.filter_context(conversation_history)
           #调试日志
           if debug_mode:
@@ -136,10 +167,14 @@ def main():
                     f.write("-"*50 + "\n")
                     f.write(f"第{answer_count}次回答: {answer}\n")
                     f.write("-"*50 + "\n")
+                    f.write(f"关键词判断: {judgment_outcome}, 预测标签:{predicted_label}\n")
                     f.write(f"提示词:{prompt}\n")
                     f.write("-"*50 + "\n")
                     f.write(f"对话历史: {conversation_history}\n")
                     f.write("-"*50 + "\n")
 
 if __name__ == "__main__":
+ try:
      main()
+ except Exception as e:
+     print(f"程序执行过程中出现异常: {e}")

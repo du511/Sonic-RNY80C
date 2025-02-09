@@ -12,7 +12,7 @@ class ContextFilter:
         try:
             response = self.client.chat.completions.create(
                 model = self.openai_model_name,
-                message = [
+                messages = [
                     {"role": "system", "content": "帮助我筛选上下文信息"},
                     {"role": "user", "content": prompt}
                 ]
