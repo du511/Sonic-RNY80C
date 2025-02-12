@@ -62,9 +62,19 @@ class ControlChatHistoryData():
             
     def list_session_ids(self,user_id: str) -> List[str]:
         """列出指定用户的会话列表"""
-        self.cursor.execute("SELECT session_id FROM chat_history WHERE user_id=?", (user_id,))
+        self.cursor.execute("SELECT session_id FROM chat_history WHERE user_id=?", (user_id))
         rows = self.cursor.fetchall()
         return [row[0] for row in rows]
+    
+    def create_new_user(self, user_id: str) -> None:
+        """创建新用户"""
+        self.cursor.execute("INSERT INTO chat_history (user_id) VALUES (?)",(user_id))
+        self.conn.commit() 
+
+    def create_new_session(self, user_id: str, session_id: str) -> None:
+        """创建新会话"""
+        self.cursor.execute("INSERT INTO chat_history (user_id, session_id) VALUES (?,?)",(user_id, session_id))
+        self.conn.commit()
 
     
 

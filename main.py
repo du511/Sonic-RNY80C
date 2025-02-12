@@ -16,8 +16,6 @@ from naive_bayes_model.naive_bayes_classifier import NaiveBayesClassifier#引入
 from naive_bayes_model.train_data.train_data import data#引入朴素贝叶斯训练数据
 from generator.MyStreamingHandler import MyStreamingHandler#引入流式输出系统
 
-
-
 #读取配置文件
 config = toml.load("config/parameter.toml")
 bert_uncased_model_name = config["bert"]["model_name"]
@@ -25,6 +23,7 @@ local_model_name = config["ChatOllama"]["model_name"]
 temperature = config["ChatOllama"]["temperature"]
 top_p = config["ChatOllama"]["top_p"]
 top_k = config["ChatOllama"]["top_k"]
+bot_name = config["ChatOllama"]["project_name"]
 
 
 #初始化langchain本地模型部署
@@ -54,15 +53,6 @@ def main():
      else:
           debug_mode = False
      
-     #列出主界面:用户选择
-     print("欢迎使用Sonic NY-80C, 请选择用户:")
-
-
-
-
-
-
-    
       #读取上次使用的文档名
      last_filename = load_last_filename()
 
@@ -119,7 +109,202 @@ def main():
      else:
       classifier.load_model(model_path, vectorizer_path)
 
-      while True:
+     #实例化对话历史记录控制系统
+     history_control = ControlChatHistoryData()
+
+     while True:#主程序循环
+          shutdown = False
+          #程序关闭机制:
+          if shutdown:
+               sys.exit(0)
+
+          """用户选择系统"""
+          selected_user_id = None
+          if selected_user_id == None:
+               while True:#用户控制系统最外层
+
+                    #列出主界面:用户数据交互
+                    users = history_control.list_user_ids()
+                    
+                    if users:
+                         if selected_user_id:
+                              print(f"用户读取成功:{selected_user_id}")
+                              break
+                         else:
+                              while True:#中层
+                                   print(f"欢迎使用{bot_name}您的指示?(-l 读取用户名, -d 删除用户, -n 新建用户, q 退出):")
+                                   if user_id_exists:
+                                        selected_user_id = user_id
+                                        break
+                                   command = input("请输入指令: ")
+                                   if command.lower() == "-l":
+                                             while True:#内层
+                                                  user_id = input("请输入用户id:")
+                                                  user_id_exists = False
+                                                  for user in users:#列出列表
+                                                       print("-"*50 + "\n")
+                                                       print(user + "\n")
+                                                  print("-" * 50)
+                                                  for user in users:
+                                                       if user_id == user:
+                                                            user_id_exists = True
+                                                            break
+                                                       else:
+                                                            print("用户不存在!")
+                                                            break
+                                   elif command.lower() == "-d":
+                                             while True:
+                                                  user_id = input("请输入用户id:")
+                                                  user_id_exists = False
+                                                  for user in users:
+                                                       for user in users:
+                                                            print("-"*50 + "\n")
+                                                            print(user + "\n")
+                                                       print("-" * 50)
+                                                       for user in users:
+                                                            if user_id == user:
+                                                                 user_id_exists = True
+                                                                 history_control.delete_session_history(user_id, None)
+                                                                 print(f"用户{user_id}及其历史记录已删除!")
+                                                                 break
+                                                       if user_id_exists:
+                                                            break
+                                                       else:
+                                                            print("用户不存在!")
+                                                            break
+                                   elif command.lower() == "-n":
+                                             while True:
+                                                  user_id = input("请输入用户id:")
+                                                  user_id_exists = True
+                                                  for user in users:
+                                                       print("-"*50 + "\n")
+                                                       print(user + "\n")
+                                                  print("-" * 50)
+                                                  for user in users:
+                                                       if user_id == user:#重名时为false,就写用户已存在
+                                                            user_id_exists = False
+                                                            break
+                                                       else:
+                                                            history_control.create_new_user(user_id)
+                                                            print(f"用户{user_id}已创建!")
+                                                            break
+                                                  if user_id_exists:
+                                                            break
+                                                  else:
+                                                       print("用户已存在!")
+                                                       break
+                                   elif command.lower() == "q":
+                                             shutdown = True
+          else:
+               print(f"欢迎使用{bot_name}, 您还没有任何用户,请先创建!")
+               user_id = input("请直接输入用户id以创建新用户: ")
+               while True:
+                    user_id = input("用户id:")
+                    user_id_exists = True
+                    history_control.create_new_user(user_id)
+                    print(f"用户{user_id}已创建!")
+                    break
+
+#----------------------------------------------------------------------------------------------------------------------------
+          """用户会话选择系统"""
+          selected_user_id = None
+          if selected_user_id == None:
+               while True:#用户控制系统最外层
+
+                    #列出主界面:用户数据交互
+                    users = history_control.list_user_ids()
+                    
+                    if users:
+                         if selected_user_id:
+                              print(f"用户读取成功:{selected_user_id}")
+                              break
+                         else:
+                              while True:#中层
+                                   print(f"欢迎使用{bot_name}您的指示?(-l 读取用户名, -d 删除用户, -n 新建用户, q 退出):")
+                                   if user_id_exists:
+                                        selected_user_id = user_id
+                                        break
+                                   command = input("请输入指令: ")
+                                   if command.lower() == "-l":
+                                             while True:#内层
+                                                  user_id = input("请输入用户id:")
+                                                  user_id_exists = False
+                                                  for user in users:#列出列表
+                                                       print("-"*50 + "\n")
+                                                       print(user + "\n")
+                                                  print("-" * 50)
+                                                  for user in users:
+                                                       if user_id == user:
+                                                            user_id_exists = True
+                                                            break
+                                                       else:
+                                                            print("用户不存在!")
+                                                            break
+                                   elif command.lower() == "-d":
+                                             while True:
+                                                  user_id = input("请输入用户id:")
+                                                  user_id_exists = False
+                                                  for user in users:
+                                                       for user in users:
+                                                            print("-"*50 + "\n")
+                                                            print(user + "\n")
+                                                       print("-" * 50)
+                                                       for user in users:
+                                                            if user_id == user:
+                                                                 user_id_exists = True
+                                                                 history_control.delete_session_history(user_id, None)
+                                                                 print(f"用户{user_id}及其历史记录已删除!")
+                                                                 break
+                                                       if user_id_exists:
+                                                            break
+                                                       else:
+                                                            print("用户不存在!")
+                                                            break
+                                   elif command.lower() == "-n":
+                                             while True:
+                                                  user_id = input("请输入用户id:")
+                                                  user_id_exists = True
+                                                  for user in users:
+                                                       print("-"*50 + "\n")
+                                                       print(user + "\n")
+                                                  print("-" * 50)
+                                                  for user in users:
+                                                       if user_id == user:#重名时为false,就写用户已存在
+                                                            user_id_exists = False
+                                                            break
+                                                       else:
+                                                            history_control.create_new_user(user_id)
+                                                            print(f"用户{user_id}已创建!")
+                                                            break
+                                                  if user_id_exists:
+                                                            break
+                                                  else:
+                                                       print("用户已存在!")
+                                                       break
+                                   elif command.lower() == "q":
+                                             shutdown = True
+          else:
+               print(f"欢迎使用{bot_name}, 您还没有任何用户,请先创建!")
+               user_id = input("请直接输入用户id以创建新用户: ")
+               while True:
+                    user_id = input("用户id:")
+                    user_id_exists = True
+                    history_control.create_new_user(user_id)
+                    print(f"用户{user_id}已创建!")
+                    break
+          
+ 
+          
+          #获取历史记录
+
+          
+              
+          
+
+
+
+
+
           #读取用户输入
           user_input = input("请输入你的问题(输入'q'退出): ")
           if user_input.lower() == "q":

@@ -11,7 +11,7 @@ class ResponseGenerator:
 
     def generate_response(self, input_user_id, input_session_id, question, relevant_context, get_session_history, return_template = False):
         role = """ 
-        你是Sonic NY-80C,一个网络安全AI，性格直爽，脾气火爆，和用户交流时，表现此种个性,
+        你是Sonic RNY-80C,一个网络安全AI，性格直爽，脾气火爆，和用户交流时，表现此种个性,
         根据指示使用RAG文档或独立回答,与用户聊天对话,仅使用用户的语言进行对话
         用雌小鬼语气回答毒舌+傲娇+少量颜文字
         """
