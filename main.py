@@ -4,12 +4,13 @@ import json
 import toml
 import jieba
 import datetime
+import sqlite3
 
 from  reader.reader import DocumentReader#引入文档读取器
 from RAG.faiss_indexer import FaissIndexer#引入Faiss索引器
 from generator.embedding import Embedding#引入文本向量化器
 from generator.response_generator import ResponseGenerator#引入回答生成器
-from filter.chat_history_summary import ChatHistorySummary#引入对话记忆系统以及历史对话读取器
+from generator.chat_history_control import ControlChatHistoryData#引入对话历史记录控制系统
 from filter.keyword_detection import KeywordDetector#引入关键词检测分类器
 from naive_bayes_model.naive_bayes_classifier import NaiveBayesClassifier#引入朴素贝叶斯分类器
 from naive_bayes_model.train_data.train_data import data#引入朴素贝叶斯训练数据
@@ -52,6 +53,15 @@ def main():
           debug_mode = True
      else:
           debug_mode = False
+     
+     #列出主界面:用户选择
+     print("欢迎使用Sonic NY-80C, 请选择用户:")
+
+
+
+
+
+
     
       #读取上次使用的文档名
      last_filename = load_last_filename()
@@ -84,11 +94,11 @@ def main():
      if not index:
           return
      
-    #初始化对话历史记录
+     #初始化对话历史记录
      answer_count = 0
      tick_count = 0
 
-
+     #初始化关键词检测分类器
      keyword_set = KeywordDetector(file_chinese_stopwords = "docs/scu_stopwords.txt", file_key_words = "docs/key_words.txt")
      answer_generator = ResponseGenerator(model)
 

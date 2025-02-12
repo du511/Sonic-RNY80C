@@ -1,29 +1,17 @@
-from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
-from operator import itemgetter
-from typing import List
-from langchain_core.chat_history import BaseChatMessageHistory
-from langchain_core.documents import Document
-from langchain_core.messages import BaseMessage, AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from pydantic import BaseModel, Field
-from langchain_core.runnables import (
-    RunnableLambda,
-    ConfigurableFieldSpec,
-    RunnablePassthrough,
-)
+from langchain_core.runnables import ConfigurableFieldSpec
 from langchain_core.runnables.history import RunnableWithMessageHistory
 
 #该类集成了两个部分:
 #1. 问答模板生成器: 该部分负责根据用户输入的相关信息生成问答模板,(提示词工程)并将其转换为语言模型可读的输入格式。
 #2. 语言模型: 对历史记录的调用,最后结合历史记录和问答模板生成语言模型的输出,作为回答。
-
 class ResponseGenerator:
     def __init__(self, model):
         self.model = model
 
-    def generate_response(self, question, relevant_context, return_template = False):
+    def generate_response(self, input_user_id, input_session_id, question, relevant_context, get_session_history, return_template = False):
         role = """ 
-        你是rabbit,一个网络安全AI，性格直爽，脾气火爆，和用户交流时，表现此种个性,
+        你是Sonic NY-80C,一个网络安全AI，性格直爽，脾气火爆，和用户交流时，表现此种个性,
         根据指示使用RAG文档或独立回答,与用户聊天对话,仅使用用户的语言进行对话
         用雌小鬼语气回答毒舌+傲娇+少量颜文字
         """
@@ -61,7 +49,27 @@ class ResponseGenerator:
 
         try:
             chain = prompt | self.model
-            answer = chain.invoke({"question":question})
+            chat_with_history = RunnableWithMessageHistory(
+            chain,
+            get_session_history = get_session_history,#传入对应方法
+            input_message_key = "question",
+            output_message_key = "history",
+            history_factory_config = [
+                ConfigurableFieldSpec(
+                    id = "user_id",
+                    annotation = str,
+                    name = "用户ID",
+                    description = "每个用户的唯一标识",
+                    default = ""),
+                ConfigurableFieldSpec(
+                    id = "session_id",
+                    annotation = str,
+                    name = "会话ID",
+                    description = "每个用户对应的会话的唯一标识",
+                    default = "")
+            ],
+        )
+            answer = chat_with_history.invoke({"question":question}, config={"user_id": input_user_id, "session_id": input_session_id})
 
             if return_template:
                 return answer, template

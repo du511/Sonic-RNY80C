@@ -21,7 +21,7 @@ class InMemoryMessageHistory(BaseChatMessageHistory, BaseModel):
     def clear(self) -> None:
         self.messages = []
     #每次生成一次对话记录,RWMH就会使用这个模块自动处理对话记录:
-    #将对话记录储存在message列表中,这个过程就包括对话记录的格式化处理
+    #将对话记录储存在message列表,message列表元素期望的形式为BaseMessage实例化后的形式
 
 #构建数据库并连接
 conn = sqlite3.connect('./database/chat_history.db')
@@ -35,8 +35,8 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS chat_history (
 conn.commit()
 
 #增添历史记录
-def add_history(user_id: str, session_id: str, history: InMemoryMessageHistory) -> None:
-    history_json = json.dumps([history.dict() for message in history.messages])
+def add_history(user_id: str, session_id: str, history: InMemoryMessageHistory) -> None:#这里传入的history是InMemoryMessageHistory对象,不止是数据属性,更有模型中的方法.
+    history_json = json.dumps([message.model_dump() for message in history.messages])#这里只调用了其中的数据属性
     cursor.execute("INSERT INTO chat_history (user_id, session_id, history) VALUES (?,?,?)", 
                    (user_id, session_id, history_json))
     #将history(即对话)转换为json格式,然后传入数据库对应id的列中
@@ -69,6 +69,32 @@ def list_session_ids(user_id: str) -> List[str]:
     cursor.execute("SELECT session_id FROM chat_history WHERE user_id=?", (user_id,))
     rows = cursor.fetchall()
     return [row[0] for row in rows]
+
+#配置RWMH(已完成除get_session_history外的配置)
+chat_with_history = RunnableWithMessageHistory(
+    chain,
+    get_session_history = get_session_history,
+    input_message_key = "question",
+    output_message_key = "history",
+    history_factory_config = [
+        ConfigurableFieldSpec(
+            id = "user_id",
+            annotation = str,
+            name = "用户ID",
+            description = "每个用户的唯一标识",
+            default = ""),
+        ConfigurableFieldSpec(
+            id = "session_id",
+            annotation = str,
+            name = "会话ID",
+            description = "每个用户对应的会话的唯一标识",
+            default = "")
+    ],
+)
+
+
+
+
 
 
 
