@@ -4,32 +4,32 @@ import json
 import toml
 import jieba
 import datetime
-from  reader.reader import DocumentReader
-from RAG.faiss_indexer import FaissIndexer
-from generator.embedding import Embedding
-from generator.response_generator import ResponseGenerator
-from filter.context_filter import ContextFilter
-from filter.keyword_detection import KeywordDetector
-from naive_bayes_model.naive_bayes_classifier import NaiveBayesClassifier
-from naive_bayes_model.train_data.train_data import data
+
+from  reader.reader import DocumentReader#引入文档读取器
+from RAG.faiss_indexer import FaissIndexer#引入Faiss索引器
+from generator.embedding import Embedding#引入文本向量化器
+from generator.response_generator import ResponseGenerator#引入回答生成器
+from filter.chat_history_summary import ChatHistorySummary#引入对话记忆系统以及历史对话读取器
+from filter.keyword_detection import KeywordDetector#引入关键词检测分类器
+from naive_bayes_model.naive_bayes_classifier import NaiveBayesClassifier#引入朴素贝叶斯分类器
+from naive_bayes_model.train_data.train_data import data#引入朴素贝叶斯训练数据
+from generator.MyStreamingHandler import MyStreamingHandler#引入流式输出系统
+
 
 
 #读取配置文件
 config = toml.load("config/parameter.toml")
-api_base = config["openai"]["api_base"]
-api_key = config["openai"]["api_key"]
-openai_model_name = config["openai"]["model_name"]
-temperature = config["openai"]["temperature"]
-top_p = config["openai"]["top_p"]
 bert_uncased_model_name = config["bert"]["model_name"]
+local_model_name = config["ChatOllama"]["model_name"]
+temperature = config["ChatOllama"]["temperature"]
+top_p = config["ChatOllama"]["top_p"]
+top_k = config["ChatOllama"]["top_k"]
 
-#初始化openai
-from openai import OpenAI
-client = OpenAI(
-    base_url = api_base,
-    api_key = api_key, # required, but unused
-)
 
+#初始化langchain本地模型部署
+from langchain_ollama import ChatOllama
+model = ChatOllama(model = local_model_name,temperature = temperature, top_p = top_p, top_k = top_k, 
+                   callbacks = [MyStreamingHandler()], streaming = True )
 
 #确保日志存在,且创建日志目录以及日志文件
 if not os.path.exists("./logs"):
@@ -84,14 +84,13 @@ def main():
      if not index:
           return
      
-    #初始化对话历史
-     conversation_history = []
+    #初始化对话历史记录
      answer_count = 0
      tick_count = 0
 
-     filter_context = ContextFilter(openai_model_name, client)
+
      keyword_set = KeywordDetector(file_chinese_stopwords = "docs/scu_stopwords.txt", file_key_words = "docs/key_words.txt")
-     answer_generator = ResponseGenerator(openai_model_name, temperature, top_p, client)
+     answer_generator = ResponseGenerator(model)
 
      #开始记录日志
      if debug_mode:
@@ -147,16 +146,11 @@ def main():
           if debug_mode:
              print(f"预测标签:{predicted_label}")
 
-          #生成回答
-          answer, prompt = answer_generator.generate_response(user_input, relevant_context, conversation_history, return_prompt=True)
-          #打印回答
-          print(answer)
+          #获取回答以及提示词模板,回答生成处理在response_generator.py中
+          answer, template = answer_generator.generate_response(user_input, relevant_context, return_template=True)
+
           #更新对话历史
-          conversation_history.append((user_input, answer))
-          #每三次筛选一次上下文
-          answer_count += 1
-          if answer_count % 3 == 0:
-             conversation_history = filter_context.filter_context(conversation_history)
+
           #调试日志
           if debug_mode:
                tick_count += 1
@@ -168,10 +162,10 @@ def main():
                     f.write(f"第{answer_count}次回答: {answer}\n")
                     f.write("-"*50 + "\n")
                     f.write(f"关键词判断: {judgment_outcome}, 预测标签:{predicted_label}\n")
-                    f.write(f"提示词:{prompt}\n")
                     f.write("-"*50 + "\n")
-                    f.write(f"对话历史: {conversation_history}\n")
+                    f.write(f"提示词模板:{template}\n")
                     f.write("-"*50 + "\n")
+                    
 
 if __name__ == "__main__":
  try:
