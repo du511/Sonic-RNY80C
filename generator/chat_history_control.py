@@ -3,8 +3,10 @@ from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.messages import BaseMessage
 from pydantic import BaseModel, Field
 import sqlite3
+import toml
 import json
 
+#基本控制系统
 class ControlChatHistoryData():
     #先写InMemoryMessageHistory,对获取的消息进行处理!
     class InMemoryMessageHistory(BaseChatMessageHistory, BaseModel):
@@ -51,7 +53,12 @@ class ControlChatHistoryData():
     
     def delete_session_history(self, user_id: str, session_id: str) -> None:
         """删除指定用户和其指定的聊天历史记录"""
-        self.cursor.execute("DELETE FROM chat_history WHERE user_id=? AND session_id=?", (user_id, session_id))
+        self.cursor.execute("DELETE FROM chat_history WHERE user_id=? ", (user_id, session_id))
+        self.conn.commit()
+
+    def delete_user_history(self, user_id: str) -> None:
+        """删除指定用户的所有聊天历史记录"""
+        self.cursor.execute("DELETE FROM chat_history WHERE user_id=?", (user_id,))
         self.conn.commit()
 
     def list_user_ids(self) -> List[str]:

@@ -10,7 +10,7 @@ from  reader.reader import DocumentReader#引入文档读取器
 from RAG.faiss_indexer import FaissIndexer#引入Faiss索引器
 from generator.embedding import Embedding#引入文本向量化器
 from generator.response_generator import ResponseGenerator#引入回答生成器
-from generator.chat_history_control import ControlChatHistoryData#引入对话历史记录控制系统
+from generator.chat_history_control import ControlChatHistoryData #引入对话历史记录控制系统
 from filter.keyword_detection import KeywordDetector#引入关键词检测分类器
 from naive_bayes_model.naive_bayes_classifier import NaiveBayesClassifier#引入朴素贝叶斯分类器
 from naive_bayes_model.train_data.train_data import data#引入朴素贝叶斯训练数据
@@ -19,16 +19,20 @@ from generator.MyStreamingHandler import MyStreamingHandler#引入流式输出�
 #读取配置文件
 config = toml.load("config/parameter.toml")
 bert_uncased_model_name = config["bert"]["model_name"]
+base_url = config["ChatOllama"]["base_url"]
 local_model_name = config["ChatOllama"]["model_name"]
 temperature = config["ChatOllama"]["temperature"]
 top_p = config["ChatOllama"]["top_p"]
 top_k = config["ChatOllama"]["top_k"]
 bot_name = config["ChatOllama"]["project_name"]
+logo = config["pattern"]["logo"]
+welcome = config["pattern"]["welcome"]
+help = config["help"]["help"]
 
 
 #初始化langchain本地模型部署
 from langchain_ollama import ChatOllama
-model = ChatOllama(model = local_model_name,temperature = temperature, top_p = top_p, top_k = top_k, 
+model = ChatOllama(base_url = base_url, model = local_model_name,temperature = temperature, top_p = top_p, top_k = top_k, 
                    callbacks = [MyStreamingHandler()], streaming = True )
 
 #确保日志存在,且创建日志目录以及日志文件
@@ -112,65 +116,150 @@ def main():
      #实例化对话历史记录控制系统
      history_control = ControlChatHistoryData()
 
+     print(logo)
+
      while True:#主程序循环
+          order = input(f"欢迎使用{bot_name}!，请输入指令: ")
+          #帮助指令
+          if order.lower() == "-h":
+               print("指令列表:\n")
+               print(help)
 
+          #退出指令
+          elif order.lower() == "q":
+               break
 
-          #读取用户输入
-          user_input = input("请输入你的问题(输入'q'退出): ")
-          if user_input.lower() == "q":
-                 break
-          
-          #关键词分类问题类型
-          user_input_word = set(jieba.lcut(user_input))
-          judgment_outcome = bool(user_input_word & keyword_set.keyword_detection())
+          #用户列表指令
+          elif order.lower() == "-ls":
+              users = history_control.list_user_ids()
+              if users:
+                    for user in users:
+                         print("-"*50 + "\n")
+                         print(user)
+                    print("-"*50 + "\n")
+              else:
+                    print("当前没有用户,请先创建用户")
 
-          #朴素贝叶斯分类预测问题类型
-          predicted_label = classifier.predict(user_input)
+          #用户删除指令
+          elif list(order.split())[0] == "-d" and len(list(order.split())) == 2:
+               user_id = list(order.split())[1]
+               users = history_control.list_user_ids()
+               if user_id in users:
+                    history_control.delete_user_history(user_id)
+                    print(f"用户{user_id}的历史记录已删除")
+               else:
+                    print(f"用户{user_id}不存在,请先创建用户")
 
-          #生成输入的向量
-          input_embedding = embedding_generator.get_embedding(user_input)
-          #搜索索引
-          if input_embedding is None:
-               continue
-          if index is None:
-            print("索引未建立,无法搜索")
-            continue
-          unique_id = faiss_indexer.search_index(input_embedding, top_k = 5)
-          #对rag使用进行判断
-          if  judgment_outcome:
-               if predicted_label == 1:
-                 relevant_context = list(set([paragraphs[i] for i in unique_id]))
-               elif predicted_label == 0:
-                   relevant_context = []
-          elif judgment_outcome == False:
-               if predicted_label == 1:
-                   relevant_context = list(set([paragraphs[i] for i in unique_id]))
-               elif predicted_label == 0:
-                   relevant_context = []
+          #用户创建指令
+          elif list(order)[0] == "-n" and len(list(order.split())) == 2:
+               user_id =list(order.split())[1]
+               users = history_control.list_user_ids()
+               if user_id not in users:
+                    history_control.create_new_user(user_id)
+                    print(f"用户{user_id}已创建")
+               else:
+                    print(f"用户{user_id}已存在,请勿重复创建")
 
-          if debug_mode:
-             print(f"预测标签:{predicted_label}")
+          #会话列表指令
+          elif list(order.split())[0] == "-l" and list(order.split())[2] == "-ls" and len(list(order.split())) == 4:
+               user_id = list(order.split())[1]
+               sessions = history_control.list_session_ids(user_id)
+               if sessions:
+                    for session in sessions:
+                         print("-"*50 + "\n")
+                         print(session)
+                    print("-"*50 + "\n")
+               else:
+                    print(f"用户{user_id}没有会话记录,请先创建新会话")
 
-          #获取回答以及提示词模板,回答生成处理在response_generator.py中
-          answer, template = answer_generator.generate_response(user_input, relevant_context, return_template=True)
+          #会话删除指令
+          elif list(order.split())[0] == "-l" and list(order.split())[2] == "-d" and len(list(order.split())) == 4:
+               user_id = list(order.split())[1]
+               session_id = list(order.split())[3]
+               sessions = history_control.list_session_ids(user_id)
+               if session_id in sessions:
+                    history_control.delete_session_history(user_id, session_id)
+                    print(f"用户{user_id}的会话{session_id}已删除")
+               else:
+                    print(f"用户{user_id}的会话{session_id}不存在,请先创建会话")
 
-          #更新对话历史
+          #会话创建指令
+          elif list(order.split())[0] == "-l" and list(order.split())[2] == "-n" and len(list(order.split())) == 4:
+               sessions = history_control.list_session_ids(user_id)
+               user_id = list(order.split())[1]
+               session_id = list(order.split())[3]
+               if session_id not in sessions:
+                    history_control.create_new_session(user_id, session_id)
+                    print(f"用户{user_id}的会话{session_id}已创建")
+               else:
+                    print(f"用户{user_id}的会话{session_id}已存在,请勿重复创建")
 
-          #调试日志
-          if debug_mode:
-               tick_count += 1
-               with open(log_file, "a", encoding="utf-8") as f:
-                    f.write(f"[{tick_count}]\n")
-                    f.write("-"*50 + "\n")
-                    f.write(f"用户输入: {user_input}\n")
-                    f.write("-"*50 + "\n")
-                    f.write(f"第{answer_count}次回答: {answer}\n")
-                    f.write("-"*50 + "\n")
-                    f.write(f"关键词判断: {judgment_outcome}, 预测标签:{predicted_label}\n")
-                    f.write("-"*50 + "\n")
-                    f.write(f"提示词模板:{template}\n")
-                    f.write("-"*50 + "\n")
-                    
+          #进入会话指令
+          elif list(order.split())[0] == "-l" and list(order.split())[2] == "-l" and len(list(order.split())) == 4:
+               sessions = history_control.list_session_ids(user_id)
+               user_id = list(order.split())[1]
+               session_id = list(order.split())[3]
+               if session_id in sessions:
+                    print(f"欢迎进入用户{user_id}的会话{session_id}，请输入指令: ")
+                    while True:
+                         #读取用户输入
+                         user_input = input("请输入你的问题(输入'q'退出): ")
+                         if user_input.lower() == "q":
+                              break
+                         
+                         #关键词分类问题类型
+                         user_input_word = set(jieba.lcut(user_input))
+                         judgment_outcome = bool(user_input_word & keyword_set.keyword_detection())
+
+                         #朴素贝叶斯分类预测问题类型
+                         predicted_label = classifier.predict(user_input)
+
+                         #生成输入的向量
+                         input_embedding = embedding_generator.get_embedding(user_input)
+                         #搜索索引
+                         if input_embedding is None:
+                              continue
+                         if index is None:
+                              print("索引未建立,无法搜索")
+                              continue
+                         unique_id = faiss_indexer.search_index(input_embedding, top_k = 5)
+                         #对rag使用进行判断
+                         if  judgment_outcome:
+                              if predicted_label == 1:
+                                  relevant_context = list(set([paragraphs[i] for i in unique_id]))
+                              elif predicted_label == 0:
+                                  relevant_context = []
+                         elif judgment_outcome == False:
+                              if predicted_label == 1:
+                                  relevant_context = list(set([paragraphs[i] for i in unique_id]))
+                              elif predicted_label == 0:
+                                  relevant_context = []
+
+                         if debug_mode:
+                             print(f"预测标签:{predicted_label}")
+
+                         #获取回答以及提示词模板,回答生成处理在response_generator.py中
+                         answer, template = answer_generator.generate_response(user_id, session_id, user_input, relevant_context, return_template=True)
+
+                         #更新对话历史
+
+                         #调试日志
+                         if debug_mode:
+                              tick_count += 1
+                              with open(log_file, "a", encoding="utf-8") as f:
+                                   f.write(f"[{tick_count}]\n")
+                                   f.write("-"*50 + "\n")
+                                   f.write(f"用户输入: {user_input}\n")
+                                   f.write("-"*50 + "\n")
+                                   f.write(f"第{answer_count}次回答: {answer}\n")
+                                   f.write("-"*50 + "\n")
+                                   f.write(f"关键词判断: {judgment_outcome}, 预测标签:{predicted_label}\n")
+                                   f.write("-"*50 + "\n")
+                                   f.write(f"提示词模板:{template}\n")
+                                   f.write("-"*50 + "\n")
+
+               else:
+                    print(f"用户{user_id}的会话{session_id}不存在,请先创建会话")
 
 if __name__ == "__main__":
  try:
