@@ -1,10 +1,10 @@
 [ChatOllama]
-base_url = "http://localhost:11434/v1"
+base_url = "http://localhost:11434"
 project_name = "Sonic RNY-80C"
 model_name = "rabbit"
 temperature = 0.2
-top_p = 0.9
-top_k = 60
+top_p = 0.5
+top_k = 30
 
 [help]
 help = """
