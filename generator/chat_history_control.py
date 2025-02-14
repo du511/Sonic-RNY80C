@@ -38,9 +38,19 @@ class ControlChatHistoryData:
     def __init__(self):
         """构建并连接数据库"""
         self.connection_pool = SQLiteConnectionPool('./generator/database/chat_history.db')
-        # 这里不需要直接连接数据库，因为后续会从连接池获取连接
-        # self.conn = sqlite3.connect('./generator/database/chat_history.db')
-        # self.cursor = self.conn.cursor()
+        self.conn = sqlite3.connect('./generator/database/chat_history.db')
+        self.cursor = self.conn.cursor()
+        # 修改表结构，添加消息内容、类型和序号列
+        self.cursor.execute('''CREATE TABLE IF NOT EXISTS chat_history (
+               user_id TEXT,
+               session_id TEXT,
+               message_index INTEGER,
+               message_content TEXT,
+               message_type TEXT,
+               PRIMARY KEY (user_id, session_id, message_index)
+               )''')
+        self.conn.commit()  # 保存数据库
+        
 
     def add_history(self, user_id: str, session_id: str, history: InMemoryMessageHistory) -> None:
         """将对话记录存入数据库"""
