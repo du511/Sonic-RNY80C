@@ -138,7 +138,7 @@ def main():
                     for user in users:
                          print("-" * 50)
                          print(user)
-                    print("-" * 50 + "\n")
+                    print("-" * 50)
                else:
                     print("当前没有用户,请先创建用户")
 

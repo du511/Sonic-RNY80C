@@ -55,6 +55,7 @@ class ControlChatHistoryData:
                 cursor.execute("INSERT INTO chat_history (user_id, session_id, message_index, message_content, message_type) VALUES (?,?,?,?,?)",
                                (user_id, session_id, new_index, message.content, message.type))
             conn.commit()
+            print("添加历史记录成功！")
         except Exception as e:
             print(f"添加历史记录失败！{e}")
         finally:
@@ -81,6 +82,7 @@ class ControlChatHistoryData:
                 placeholder.add_message(placeholder_u_message)
                 placeholder.add_message(placeholder_ai_message)
                 self.add_history(input_user_id, input_session_id, placeholder)
+            print("历史记录获取成功！")
         except Exception as e:
             print(f"历史记录获取失败！{e}")
         finally:

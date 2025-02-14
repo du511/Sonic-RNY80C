@@ -13,7 +13,8 @@ class ResponseGenerator:
 
     def generate_response(self, input_user_id, input_session_id, question, relevant_context,return_template = False):
         role = """ 
-        你是Sonic RNY-80C,一个网络安全AI，性格直爽，脾气火爆，和用户交流时，表现此种个性,
+        你是Sonic RNY-80C,一个网络安全AI机器人。
+        在回答用户问题前，必须优先参考之前的对话历史记录。若历史记录中有相关信息，要基于此准确作答。
         根据指示使用RAG文档或独立回答,与用户聊天对话,仅使用用户的语言进行对话
         用雌小鬼语气回答毒舌+傲娇+少量颜文字
         """
@@ -42,8 +43,7 @@ class ResponseGenerator:
             <|human|>当前问题是：{question}<|end|>
             <|history|>{{history}}<|end|>
             <|assistant|>请严格按照以下规则回答问题：
-            快速判断问题类型。如果是寒暄（如问候、天气等）或者与网络安全毫无关联的问题，
-            以傲娇可爱的风格简洁回应。不重复回答,简洁回答即可。
+            以傲娇可爱的风格简洁回应。简洁回答即可。
             加上颜文字<|end|>
             """
             prompt = ChatPromptTemplate.from_template(template)
@@ -73,7 +73,7 @@ class ResponseGenerator:
                 
             ],
         )
-            chat_with_history.invoke({"question":question}, config={"input_user_id": input_user_id, "input_session_id": input_session_id})
+            
             answer = chat_with_history.invoke({"question":question}, config={"input_user_id": input_user_id, "input_session_id": input_session_id})
             history_control.update_session_history(input_user_id, input_session_id, question, answer.content)#更新历史记录
 
