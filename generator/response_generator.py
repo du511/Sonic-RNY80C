@@ -43,7 +43,7 @@ class ResponseGenerator:
             <|history|>{{history}}<|end|>
             <|assistant|>请严格按照以下规则回答问题：
             快速判断问题类型。如果是寒暄（如问候、天气等）或者与网络安全毫无关联的问题，
-            以傲娇可爱的风格简洁回应。要干脆利落，不要添加多余解释或废话。
+            以傲娇可爱的风格简洁回应。不重复回答,简洁回答即可。
             加上颜文字<|end|>
             """
             prompt = ChatPromptTemplate.from_template(template)
@@ -70,6 +70,7 @@ class ResponseGenerator:
                     name = "会话ID",
                     description = "每个用户对应的会话的唯一标识",
                     default = "")
+                
             ],
         )
             chat_with_history.invoke({"question":question}, config={"input_user_id": input_user_id, "input_session_id": input_session_id})

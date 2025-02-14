@@ -2,9 +2,9 @@
 base_url = "http://localhost:11434"
 project_name = "Sonic RNY-80C"
 model_name = "rabbit"
-temperature = 0.2
-top_p = 0.5
-top_k = 30
+temperature = 0.1
+top_p = 0.4
+top_k = 15
 
 [help]
 help = """
