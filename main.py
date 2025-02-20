@@ -8,7 +8,7 @@ import datetime
 from  reader.reader import DocumentReader#引入文档读取器
 from RAG.faiss_indexer import FaissIndexer#引入Faiss索引器
 from generator.embedding import Embedding#引入文本向量化器
-from generator.daily_net_response_generator import DNetResponseGenerator#引入日常/网安技术回答生成器
+from generator.daily_response_generator import DNetResponseGenerator#引入日常/网安技术回答生成器
 #引入法律及其案例分类器
 from generator.chat_history_control import ControlChatHistoryData #引入对话历史记录控制系统
 from naive_bayes_model.naive_bayes_classifier import NaiveBayesClassifier#引入朴素贝叶斯分类器
@@ -32,21 +32,10 @@ temperature_A = config["model_A"]["temperature"]
 top_p_A = config["model_A"]["top_p"]
 top_k_A = config["model_A"]["top_k"]
 
-#模型B参数
-base_url_B = config["model_B"]["base_url"]
-local_model_name_B = config["model_B"]["model_name"]
-temperature_B = config["model_B"]["temperature"]
-top_p_B = config["model_B"]["top_p"]
-top_k_B = config["model_B"]["top_k"]
-
-
-
-
 #初始化langchain本地模型部署
 from langchain_ollama import ChatOllama
 model_A = ChatOllama(base_url = base_url_A, model = local_model_name_A,temperature = temperature_A, top_p = top_p_A, top_k = top_k_A, 
                    callbacks = [MyStreamingHandler()], streaming = True )
-model_B = ChatOllama(base_url = base_url_B, model = local_model_name_B,temperature = temperature_B, top_p = top_p_B, top_k = top_k_B, )
 
 #确保日志存在,且创建日志目录以及日志文件
 if not os.path.exists("./logs"):
@@ -104,9 +93,14 @@ def main():
           cases_file_path = input("(库三)请输入文档路径: ")
      #先保存文件
      save_last_filename(net_file_path, laws_file_path, cases_file_path)
-                 
-  #这里需要修改:对三个文件都进行读取
-     #读取文档
+
+     """以下是主程序里的RAG部分:
+       1. 读取RAG纯文本材料文档
+       2.获取RAG纯文本,处理为段,便于输入
+       3.对每个库的faiss索引工具进行初始化
+       """                 
+     
+     #1.读取文档,并进行处理
      document_reader = DocumentReader()#读取器
      #建立文档列表,再一个个读取
      file_list = [net_file_path, laws_file_path, cases_file_path]
@@ -115,24 +109,19 @@ def main():
      for text in raw_text:
           paragraphs = text.split("\n\n")
           raw_paragraphs.append(paragraphs)#对段落进行分段处理
-    
-     #建立Faiss索引
+          #raw_paragraphs变量里的每一个元素就是一个2已经被分段的文本
+
+     """采用数字编号对不同的RAG纯文本材料(已分段)进行索引:
+       网安知识: 0
+       法律法规: 1
+       法律案例: 2
+     """
+     #2.初始化索引器
      embedding_generator = Embedding(bert_uncased_model_name)#向量生成器
      faiss_indexer_net = FaissIndexer()#网安知识索引器
      faiss_indexer_laws = FaissIndexer()#法律索引器
      faiss_indexer_cases = FaissIndexer()#案例索引器
 
-     i = 0
-     while i < len(raw_paragraphs):
-          if i == 0:
-               net_indexs = faiss_indexer_net.build_index(raw_paragraphs[i], embedding_generator)#一个index里面包含一种数据的很多段
-               i += 1
-          elif i == 1:
-               laws_indexs = faiss_indexer_laws.build_index(raw_paragraphs[i], embedding_generator)
-               i += 1
-          else:
-               cases_indexs = faiss_indexer_cases.build_index(raw_paragraphs[i], embedding_generator)
-               i += 1
 
      #初始化对话历史记录
      answer_count = 0
@@ -258,21 +247,23 @@ def main():
                          # 朴素贝叶斯分类预测问题类型
                          predicted_label = classifier.predict(user_input)
 
-                         # 生成输入的向量
-                         input_embedding = embedding_generator.get_embedding(user_input)
-                         # *搜索索引这一部分还会施工*
-                         if input_embedding is None:
-                              continue
-                         if index is None:
-                              print("索引未建立,无法搜索")
-                              continue
-                         unique_id = faiss_indexer.search_index(input_embedding, top_k=5)
-                         # 对rag使用进行判断
+                         #以下这部分,准备废除,将会被打包加入response_generator.py中
+                         # # 生成输入的向量
+                         # input_embedding = embedding_generator.get_embedding(user_input)
+                         # # *搜索索引这一部分还会施工*
+                         # if input_embedding is None:
+                         #      continue
+                         # if index is None:
+                         #      print("索引未建立,无法搜索")
+                         #      continue
+                         # unique_id = faiss_indexer.search_index(input_embedding, top_k=5)
+                         # # 对rag使用进行判断
   
-                         if predicted_label == 0:
-                           relevant_context = []
-                         elif predicted_label == 1:
-                           relevant_context = list(set([paragraphs[i] for i in unique_id]))
+                         # if predicted_label == 0:
+                         #   relevant_context = []
+                         # elif predicted_label == 1:
+                         #   relevant_context = list(set([paragraphs[i] for i in unique_id]))
+
 
                          if debug_mode:
                               print(f"预测标签:{predicted_label}")
