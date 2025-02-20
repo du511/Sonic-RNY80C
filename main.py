@@ -8,8 +8,7 @@ import datetime
 from  reader.reader import DocumentReader#引入文档读取器
 from RAG.faiss_indexer import FaissIndexer#引入Faiss索引器
 from generator.embedding import Embedding#引入文本向量化器
-from generator.daily_response_generator import DNetResponseGenerator#引入日常/网安技术回答生成器
-#引入法律及其案例分类器
+from generator.response_generator import ResponseGenerator#引入日常/网安技术/法律/案例解析回答生成器
 from generator.chat_history_control import ControlChatHistoryData #引入对话历史记录控制系统
 from naive_bayes_model.naive_bayes_classifier import NaiveBayesClassifier#引入朴素贝叶斯分类器
 from naive_bayes_model.train_data.train_data import data#引入朴素贝叶斯训练数据
@@ -128,7 +127,7 @@ def main():
      tick_count = 0
 
      #初始化回答器
-     answer_generator = DNetResponseGenerator(model_A)
+     response_generator = ResponseGenerator(model_A)
 
      #开始记录日志
      if debug_mode:
@@ -247,31 +246,32 @@ def main():
                          # 朴素贝叶斯分类预测问题类型
                          predicted_label = classifier.predict(user_input)
 
-                         #以下这部分,准备废除,将会被打包加入response_generator.py中
-                         # # 生成输入的向量
-                         # input_embedding = embedding_generator.get_embedding(user_input)
-                         # # *搜索索引这一部分还会施工*
-                         # if input_embedding is None:
-                         #      continue
-                         # if index is None:
-                         #      print("索引未建立,无法搜索")
-                         #      continue
-                         # unique_id = faiss_indexer.search_index(input_embedding, top_k=5)
-                         # # 对rag使用进行判断
-  
-                         # if predicted_label == 0:
-                         #   relevant_context = []
-                         # elif predicted_label == 1:
-                         #   relevant_context = list(set([paragraphs[i] for i in unique_id]))
-
-
                          if debug_mode:
                               print(f"预测标签:{predicted_label}")
 
-                         # 获取回答以及提示词模板,回答生成处理在response_generator.py中
-                         answer, template = answer_generator.generate_response(user_id, session_id, user_input, relevant_context, return_template=True)
-
-                         # 更新对话历史
+                         # 获取回答以及提示词模板,回答生成处理在response_generator.py中,开始分类:
+                         response_generator = ResponseGenerator(model_A)
+                         if predicted_label == 0:
+                              response, template = response_generator.generate_response_dailys(user_id, session_id, user_input, return_template=True)
+                              print(response)
+                         elif predicted_label == 1:
+                              response, template = response_generator.generate_response_nets(user_id, session_id, user_input, 
+                                                                                             net_faisser_indexer = faiss_indexer_net,
+                                                                                              raw_paragraphs_nets = raw_paragraphs[0],
+                                                                                             return_template=True)
+                              print(response)
+                         elif predicted_label == 2:
+                              response, template = response_generator.generate_response_laws(user_id, session_id, user_input, 
+                                                                                             laws_faisser_indexer = faiss_indexer_laws, cases_faiss_indexer = faiss_indexer_cases,
+                                                                                             raw_paragraphs_laws = raw_paragraphs[1], rag_paragraphs_cases = raw_paragraphs[2],
+                                                                                             return_template=True)
+                              print(response)
+                         elif predicted_label == 3:
+                              response, template = response_generator.analyze_case_with_law(user_id, session_id, user_input, 
+                                                                                             cases_faisser_indexer = faiss_indexer_cases, cases_faiss_indexer = faiss_indexer_laws, 
+                                                                                             raw_paragraphs_cases = raw_paragraphs[2], rag_paragraphs_laws = raw_paragraphs[1],
+                                                                                             return_template=True)
+                              print(response)
 
                          # 调试日志
                          if debug_mode:
@@ -283,7 +283,7 @@ def main():
                                    f.write("-" * 50 + "\n")
                                    f.write(f"第{answer_count}次回答: {answer}\n")
                                    f.write("-" * 50 + "\n")
-                                   f.write(f"关键词判断: {judgment_outcome}, 预测标签:{predicted_label}\n")
+                                   f.write(f"朴素贝叶斯预测标签:{predicted_label}\n")
                                    f.write("-" * 50 + "\n")
                                    f.write(f"提示词模板:{template}\n")
                                    f.write("-" * 50 + "\n")
