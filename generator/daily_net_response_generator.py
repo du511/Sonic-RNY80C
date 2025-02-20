@@ -4,9 +4,9 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from generator.chat_history_control import ControlChatHistoryData
 
 #该类集成了两个部分:
-#1. 问答模板生成器: 该部分负责根据用户输入的相关信息生成问答模板,(提示词工程)并将其转换为语言模型可读的输入格式。
+#1. 问答模板生成器: 该部分负责根据用户输入  的相关信息生成问答模板,(提示词工程)并将其转换为语言模型可读的输入格式。
 #2. 语言模型: 对历史记录的调用,最后结合历史记录和问答模板生成语言模型的输出,作为回答。
-class ResponseGenerator:
+class DNetResponseGenerator:
     
     def __init__(self, model):
         self.model = model
@@ -86,6 +86,4 @@ class ResponseGenerator:
             if return_template:
                 return "" ,template
             else:
-                return ""
-
-        
+                return ""        

@@ -1,7 +1,14 @@
-[ChatOllama]
+[model_A]
 base_url = "http://localhost:11434"
 project_name = "Sonic RNY-80C"
 model_name = "rabbit"
+temperature = 0.1
+top_p = 0.1
+top_k = 10
+
+[model_B]
+base_url = "http://localhost:11434"
+model_name = ""
 temperature = 0.1
 top_p = 0.1
 top_k = 10

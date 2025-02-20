@@ -52,6 +52,4 @@ class DocumentReader:
             return DocumentReader.read_txt(file_path)
         else:
             print(f"Unsupported file type: {file_extension}")
-            return ''
-        
-
+            return ''      

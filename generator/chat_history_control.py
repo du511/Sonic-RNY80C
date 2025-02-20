@@ -7,10 +7,10 @@ import queue
 
 
 class SQLiteConnectionPool:
-    def __init__(self, db_path, pool_size=5):
+    def __init__(self, db_path, pool_size = 5):
         self.db_path = db_path
         self.pool_size = pool_size
-        self.pool = queue.Queue(maxsize=pool_size)
+        self.pool = queue.Queue(maxsize = pool_size)
         for _ in range(pool_size):
             conn = sqlite3.connect(db_path)
             self.pool.put(conn)
@@ -81,14 +81,14 @@ class ControlChatHistoryData:
             messages = []
             for content, msg_type in rows:
                 if content is not None and msg_type is not None:
-                    messages.append(BaseMessage(content=content, type=msg_type))
+                    messages.append(BaseMessage(content = content, type = msg_type))
             if messages:
-                history = self.InMemoryMessageHistory(messages=messages)
+                history = self.InMemoryMessageHistory(messages = messages)
                 return history
             else:
                 placeholder = self.InMemoryMessageHistory()
-                placeholder_u_message = BaseMessage(content="No history found for this session.", type='user')
-                placeholder_ai_message = BaseMessage(content="No history found for this session.", type='assistant')
+                placeholder_u_message = BaseMessage(content = "No history found for this session.", type='user')
+                placeholder_ai_message = BaseMessage(content = "No history found for this session.", type='assistant')
                 placeholder.add_message(placeholder_u_message)
                 placeholder.add_message(placeholder_ai_message)
                 self.add_history(input_user_id, input_session_id, placeholder)
@@ -106,8 +106,8 @@ class ControlChatHistoryData:
         if assistant_message is None:
             assistant_message = ""
         updated_history = self.InMemoryMessageHistory()
-        new_user_message = BaseMessage(content=user_message, type='user')
-        new_assistant_message = BaseMessage(content=assistant_message, type='assistant')
+        new_user_message = BaseMessage(content = user_message, type='user')
+        new_assistant_message = BaseMessage(content = assistant_message, type='assistant')
         updated_history.add_message(new_user_message)
         updated_history.add_message(new_assistant_message)
 

@@ -4,14 +4,13 @@ import json
 import toml
 import jieba
 import datetime
-import sqlite3
 
 from  reader.reader import DocumentReader#引入文档读取器
 from RAG.faiss_indexer import FaissIndexer#引入Faiss索引器
 from generator.embedding import Embedding#引入文本向量化器
-from generator.response_generator import ResponseGenerator#引入回答生成器
+from generator.daily_net_response_generator import DNetResponseGenerator#引入日常/网安技术回答生成器
+#引入法律及其案例分类器
 from generator.chat_history_control import ControlChatHistoryData #引入对话历史记录控制系统
-from filter.keyword_detection import KeywordDetector#引入关键词检测分类器
 from naive_bayes_model.naive_bayes_classifier import NaiveBayesClassifier#引入朴素贝叶斯分类器
 from naive_bayes_model.train_data.train_data import data#引入朴素贝叶斯训练数据
 from generator.MyStreamingHandler import MyStreamingHandler#引入流式输出系统
@@ -19,35 +18,54 @@ from generator.MyStreamingHandler import MyStreamingHandler#引入流式输出�
 #读取配置文件
 config = toml.load("config/parameter.toml")
 bert_uncased_model_name = config["bert"]["model_name"]
-base_url = config["ChatOllama"]["base_url"]
-local_model_name = config["ChatOllama"]["model_name"]
-temperature = config["ChatOllama"]["temperature"]
-top_p = config["ChatOllama"]["top_p"]
-top_k = config["ChatOllama"]["top_k"]
-bot_name = config["ChatOllama"]["project_name"]
+
+#读取提示参数
+bot_name = config["model_A"]["project_name"]
 logo = config["pattern"]["logo"]
 welcome = config["pattern"]["welcome"]
 help = config["help"]["help"]
 
+#模型A参数
+base_url_A = config["model_A"]["base_url"]
+local_model_name_A = config["model_A"]["model_name"]
+temperature_A = config["model_A"]["temperature"]
+top_p_A = config["model_A"]["top_p"]
+top_k_A = config["model_A"]["top_k"]
+
+#模型B参数
+base_url_B = config["model_B"]["base_url"]
+local_model_name_B = config["model_B"]["model_name"]
+temperature_B = config["model_B"]["temperature"]
+top_p_B = config["model_B"]["top_p"]
+top_k_B = config["model_B"]["top_k"]
+
+
+
 
 #初始化langchain本地模型部署
 from langchain_ollama import ChatOllama
-model = ChatOllama(base_url = base_url, model = local_model_name,temperature = temperature, top_p = top_p, top_k = top_k, 
+model_A = ChatOllama(base_url = base_url_A, model = local_model_name_A,temperature = temperature_A, top_p = top_p_A, top_k = top_k_A, 
                    callbacks = [MyStreamingHandler()], streaming = True )
+model_B = ChatOllama(base_url = base_url_B, model = local_model_name_B,temperature = temperature_B, top_p = top_p_B, top_k = top_k_B, )
 
 #确保日志存在,且创建日志目录以及日志文件
 if not os.path.exists("./logs"):
     os.mkdir("logs")
 
-def save_last_filename(filename):
-        with open("logs/last_filename.json", "w") as f:
-            json.dump({"filename": filename}, f)
+def save_last_filename(net_filename, law_filename, case_filename):#保存文件,要分类修改 2.19
+     data = {
+          "net_filename" : net_filename,
+          "law_filename" : law_filename,
+          "case_filename" : case_filename
+     }
+     with open("logs/last_filename.json", "w") as f:
+          json.dump(data, f)
 
 def load_last_filename():
-     if os.path.exists("logs/last_filename.json"):
-         with open("logs/last_filename.json", "r") as f:
+     if os.path.exists("logs/filename.json"):
+         with open("logs/filename.json", "r") as f:
              data = json.load(f)
-             return data.get("filename") 
+             return data.get("net_filename"), data.get("law_filename"), data.get("case_filename") #改了,三个字符都要返回 2.19
      return None       
 
 def main():
@@ -57,44 +75,71 @@ def main():
      else:
           debug_mode = False
      
-      #读取上次使用的文档名
-     last_filename = load_last_filename()
-
-     if last_filename:
-          use_last = input(f"是否需要使用上次的文档:{last_filename}? (y/n)")
+     net_filename, law_filename, case_filename = load_last_filename()
+     if net_filename:
+          use_last = input(f"(库1)是否需要使用上次的文档:{net_filename}? (y/n)")
           if use_last.lower() == "y":
-               file_path = last_filename
+               net_file_path = net_filename
           else:
-               file_path = input("请输入文档路径: ")
-               save_last_filename(file_path)
+               net_file_path = input("(库一)请输入文档路径: ")
      else:
-        file_path = input("请输入文档路径: ")
-        save_last_filename(file_path)            
-  
-     #读取文档
-     document_reader = DocumentReader()
-     raw_text = document_reader.read_file(file_path)
-     if not raw_text:
-          return
-    #  print(f"文档内容:\n{raw_text}")
-    
-     #分为段落
-     paragraphs = raw_text.split("\n\n")
+          net_file_path = input("(库一)请输入文档路径: ")
 
+     if law_filename:
+          use_last = input(f"(库2)是否需要使用上次的文档:{law_filename}? (y/n)")
+          if use_last.lower() == "y":
+               laws_file_path = law_filename
+          else:
+               laws_file_path = input("(库二)请输入文档路径: ")
+     else:
+          laws_file_path = input("(库二)请输入文档路径: ")
+
+     if case_filename:
+          use_last = input(f"(库3)是否需要使用上次的文档:{case_filename}? (y/n)")
+          if use_last.lower() == "y":
+               cases_file_path = case_filename
+          else:
+               cases_file_path = input("(库三)请输入文档路径: ")
+     else:
+          cases_file_path = input("(库三)请输入文档路径: ")
+     #先保存文件
+     save_last_filename(net_file_path, laws_file_path, cases_file_path)
+                 
+  #这里需要修改:对三个文件都进行读取
+     #读取文档
+     document_reader = DocumentReader()#读取器
+     #建立文档列表,再一个个读取
+     file_list = [net_file_path, laws_file_path, cases_file_path]
+     raw_text = [document_reader.read_file(file_path) for file_path in file_list]
+     raw_paragraphs = []
+     for text in raw_text:
+          paragraphs = text.split("\n\n")
+          raw_paragraphs.append(paragraphs)#对段落进行分段处理
+    
      #建立Faiss索引
-     embedding_generator = Embedding(bert_uncased_model_name)
-     faiss_indexer = FaissIndexer()
-     index = faiss_indexer.build_index(paragraphs, embedding_generator)
-     if not index:
-          return
-     
+     embedding_generator = Embedding(bert_uncased_model_name)#向量生成器
+     faiss_indexer_net = FaissIndexer()#网安知识索引器
+     faiss_indexer_laws = FaissIndexer()#法律索引器
+     faiss_indexer_cases = FaissIndexer()#案例索引器
+
+     i = 0
+     while i < len(raw_paragraphs):
+          if i == 0:
+               net_indexs = faiss_indexer_net.build_index(raw_paragraphs[i], embedding_generator)#一个index里面包含一种数据的很多段
+               i += 1
+          elif i == 1:
+               laws_indexs = faiss_indexer_laws.build_index(raw_paragraphs[i], embedding_generator)
+               i += 1
+          else:
+               cases_indexs = faiss_indexer_cases.build_index(raw_paragraphs[i], embedding_generator)
+               i += 1
+
      #初始化对话历史记录
      answer_count = 0
      tick_count = 0
 
-     #初始化关键词检测分类器
-     keyword_set = KeywordDetector(file_chinese_stopwords = "docs/scu_stopwords.txt", file_key_words = "docs/key_words.txt")
-     answer_generator = ResponseGenerator(model)
+     #初始化回答器
+     answer_generator = DNetResponseGenerator(model_A)
 
      #开始记录日志
      if debug_mode:
@@ -210,16 +255,12 @@ def main():
                          if user_input.lower() == "q":
                               break
 
-                         # 关键词分类问题类型
-                         user_input_word = set(jieba.lcut(user_input))
-                         judgment_outcome = bool(user_input_word & keyword_set.keyword_detection())
-
                          # 朴素贝叶斯分类预测问题类型
                          predicted_label = classifier.predict(user_input)
 
                          # 生成输入的向量
                          input_embedding = embedding_generator.get_embedding(user_input)
-                         # 搜索索引
+                         # *搜索索引这一部分还会施工*
                          if input_embedding is None:
                               continue
                          if index is None:
@@ -227,16 +268,11 @@ def main():
                               continue
                          unique_id = faiss_indexer.search_index(input_embedding, top_k=5)
                          # 对rag使用进行判断
-                         if judgment_outcome:
-                              if predicted_label == 1:
-                               relevant_context = list(set([paragraphs[i] for i in unique_id]))
-                              elif predicted_label == 0:
-                               relevant_context = []
-                         elif not judgment_outcome:
-                              if predicted_label == 1:
-                               relevant_context = list(set([paragraphs[i] for i in unique_id]))
-                              elif predicted_label == 0:
-                               relevant_context = []
+  
+                         if predicted_label == 0:
+                           relevant_context = []
+                         elif predicted_label == 1:
+                           relevant_context = list(set([paragraphs[i] for i in unique_id]))
 
                          if debug_mode:
                               print(f"预测标签:{predicted_label}")

@@ -10,7 +10,7 @@ class FaissIndexer:
         try:
             embeddings = [embedding_generator.get_embedding(text) for text in texts]
             embeddings = np.array([embedding for embedding in embeddings if embedding is not None]).astype('float32')#faiss要求输入的数据类型为float32且为numpy
-            self.index = faiss.IndexFlatIP(embeddings.shape[1])#该方法需要基于维数进行创建索引，这里创建的是基于维数(即单个向量的维度)的平面扁平索引
+            self.index = faiss.IndexFlatIP(embeddings.shape[1])#该方法需要基于维数进行创建索引，这里创建的是基于维数(即单个向量的维度)的平面扁平索引,这里也是在实例化,该类处理维数是基于第一个维度
             self.index.add(embeddings)
             return self.index
         except Exception as e:
