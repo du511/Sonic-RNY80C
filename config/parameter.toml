@@ -1,7 +1,7 @@
 [model_A]
 base_url = "http://localhost:11434"
-project_name = "Sonic RNY-80C"
-model_name = "rabbit"
+project_name = "网安智脑 - 网安民警知识问答系统"
+model_name = "lawbot"
 temperature = 0.1
 top_p = 0.1
 top_k = 10

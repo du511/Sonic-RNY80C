@@ -5,7 +5,7 @@ from generator.chat_history_control import ControlChatHistoryData
 from generator.embedding import Embedding#直接在def里面包含了输入数据的向量化,便于faiss数据库的查询,这个东西在主程序只有一个作用,就是向量化输入然后开始索引
 import toml
 
-config = toml.load("config/parameters.toml")
+config = toml.load("config/parameter.toml")
 bot_name = config["model_A"]["project_name"]
 
 class ResponseGenerator:
@@ -18,7 +18,7 @@ class ResponseGenerator:
     def get_relevant_texts(self,input_text, embedding_generator, rag_paragraphs, faiss_indexer ):
         """传入的参数有:用户输入,向量生成器,RAG的纯文本,faiss数据库索引工具"""
         input_embedding = embedding_generator.get_embedding(input_text)
-        faiss_indexer.build_index(rag_paragraphs)#建立索引
+        faiss_indexer.build_index(rag_paragraphs, embedding_generator)#建立索引
         unique_id_laws = faiss_indexer.search_index(input_embedding)#搜索并获取索引
         relevant_texts = list(set([rag_paragraphs[i] for i in unique_id_laws[0]]))#获得相关文本
         return relevant_texts#返回相关文本
@@ -287,7 +287,7 @@ class ResponseGenerator:
         <|system|>{role}<|end|>
         <|human|>根据以下法律条文和相关案例进行总结回答：
         法律条文：{rag_laws_context}
-        相关案例：{rag_cases_context}<|end|>
+        相关案例：{rag_cases_context}
         <|history|>{{history}}<|end|>
         <|assistant|>请按照以下格式输出回答：
         法律 xx 条是什么什么(基本信息), 意义是 xx, 适用于 xx
@@ -335,7 +335,7 @@ class ResponseGenerator:
         else:
             return final_answer, " "
 
-    # 对案件的分析的回复生成函数
+    # 对案件的分析的回复生成函数系统
     def analyze_case_with_law(self, input_user_id, input_session_id, case_description,
                               case_faiss_indexer, law_faiss_indexer,
                               rag_paragraphs_cases, rag_paragraphs_laws,

@@ -5,7 +5,7 @@ import toml
 import jieba
 import datetime
 
-from  reader.reader import DocumentReader#引入文档读取器
+from  reader.reader import DocumentReader#引入库读取器
 from RAG.faiss_indexer import FaissIndexer#引入Faiss索引器
 from generator.embedding import Embedding#引入文本向量化器
 from generator.response_generator import ResponseGenerator#引入日常/网安技术/法律/案例解析回答生成器
@@ -46,15 +46,44 @@ def save_last_filename(net_filename, law_filename, case_filename):#保存文件,
           "law_filename" : law_filename,
           "case_filename" : case_filename
      }
-     with open("logs/last_filename.json", "w") as f:
+     with open("logs/library_name.json", "w") as f:
           json.dump(data, f)
 
 def load_last_filename():
-     if os.path.exists("logs/filename.json"):
-         with open("logs/filename.json", "r") as f:
+     if os.path.exists("logs/library_name.json"):
+         with open("logs/library_name.json", "r") as f:
              data = json.load(f)
              return data.get("net_filename"), data.get("law_filename"), data.get("case_filename") #改了,三个字符都要返回 2.19
-     return None       
+     return None, None, None
+
+def process_library_folder(folder_path, library_name):
+     document_reader = DocumentReader()#读取器
+     all_text = ""
+     for root, dirs, files in os.walk(folder_path):
+          for file in files:
+               file_path = os.path.splitext(file)[1].lower()
+               if file_path in [".pdf", ".docx", ".txt"]:
+                    file_path = os.path.join(root, file)
+                    text = document_reader.read_file(file_path)
+                    all_text += text
+     # 将所有文本按段落分割
+     paragraphs = all_text.split("\n\n")
+     # 去除空段落
+     paragraphs = [p.strip() for p in paragraphs if p.strip()]
+
+     # 将处理后的文本保存到库内的 txt 文件
+     base_folder = "docs"
+     if not os.path.exists(base_folder):
+        os.makedirs(base_folder)
+     output_folder = os.path.join(base_folder, library_name)
+     if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+     output_file_path = os.path.join(output_folder, f"{library_name}_rag_data.txt")
+     with open(output_file_path, 'w', encoding='utf-8') as f:
+          for paragraph in paragraphs:
+               f.write(paragraph + "\n\n")
+
+     return paragraphs#输出的结果是多个段落并非是文本
 
 def main():
      #是否为调试模式
@@ -65,62 +94,88 @@ def main():
      
      net_filename, law_filename, case_filename = load_last_filename()
      if net_filename:
-          use_last = input(f"(库1)是否需要使用上次的文档:{net_filename}? (y/n)")
+          use_last = input(f"(网安库)是否需要使用上次的库:{net_filename}? (y/n)")
           if use_last.lower() == "y":
-               net_file_path = net_filename
+               net_file_path = (f"{net_filename}")
           else:
-               net_file_path = input("(库一)请输入文档路径: ")
+               net_file_path = input("(网安库)请输入库名(默认: net): ")
+               net_file_path = (f"{net_file_path}")
      else:
-          net_file_path = input("(库一)请输入文档路径: ")
+          net_file_path = input("(网安库)请输入库名(默认: net): ")
+          net_file_path = (f"{net_file_path}")
 
      if law_filename:
-          use_last = input(f"(库2)是否需要使用上次的文档:{law_filename}? (y/n)")
+          use_last = input(f"(法律库)是否需要使用上次的库:{law_filename}? (y/n)")
           if use_last.lower() == "y":
-               laws_file_path = law_filename
+               laws_file_path = (f"{law_filename}")
           else:
-               laws_file_path = input("(库二)请输入文档路径: ")
+               laws_file_path = input("(法律库)请输入库名(默认: laws): ")
+               laws_file_path = (f"{laws_file_path}")
+
      else:
-          laws_file_path = input("(库二)请输入文档路径: ")
+          laws_file_path = input("(法律库)请输入库名(默认: laws): ")
+          laws_file_path = (f"{laws_file_path}")
 
      if case_filename:
-          use_last = input(f"(库3)是否需要使用上次的文档:{case_filename}? (y/n)")
+          use_last = input(f"(案例库)是否需要使用上次的库:{case_filename}? (y/n)")
           if use_last.lower() == "y":
-               cases_file_path = case_filename
+               cases_file_path = (f"{case_filename}")
           else:
-               cases_file_path = input("(库三)请输入文档路径: ")
+               cases_file_path = input("(案例库)请输入库名(默认: cases): ")
+               cases_file_path = (f"{cases_file_path}")
      else:
-          cases_file_path = input("(库三)请输入文档路径: ")
+          cases_file_path = input("(案例库)请输入库名(默认: cases): ")
+          cases_file_path = (f"{cases_file_path}")
      #先保存文件
      save_last_filename(net_file_path, laws_file_path, cases_file_path)
 
+     #对每个库的文件夹进行处理:
+     net_paragraphs = process_library_folder(net_file_path, "net")
+     law_paragraphs = process_library_folder(laws_file_path, "laws")
+     case_paragraphs = process_library_folder(cases_file_path, "cases")
+
      """以下是主程序里的RAG部分:
-       1. 读取RAG纯文本材料文档
+       1. 读取RAG纯文本材料库
        2.获取RAG纯文本,处理为段,便于输入
        3.对每个库的faiss索引工具进行初始化
        """                 
      
-     #1.读取文档,并进行处理
+     #1.读取库,并进行处理
      document_reader = DocumentReader()#读取器
-     #建立文档列表,再一个个读取
-     file_list = [net_file_path, laws_file_path, cases_file_path]
-     raw_text = [document_reader.read_file(file_path) for file_path in file_list]
-     raw_paragraphs = []
-     for text in raw_text:
-          paragraphs = text.split("\n\n")
-          raw_paragraphs.append(paragraphs)#对段落进行分段处理
-          #raw_paragraphs变量里的每一个元素就是一个2已经被分段的文本
 
-     """采用数字编号对不同的RAG纯文本材料(已分段)进行索引:
+     #构建路径
+     file_paths = [
+          os.path.join("docs", "net", "net_rag_data.txt" ),
+          os.path.join("docs", "laws", "laws_rag_data.txt"),
+          os.path.join("docs", "cases", "cases_rag_data.txt"),
+     ]
+
+     #先建立读取循环
+     raw_texts = []
+     for file_path in file_paths:
+          try:
+               with open(file_path, 'r', encoding='utf-8') as f:
+                    raw_text = f.read()
+                    raw_texts.append(raw_text)
+          except Exception as e:
+               print(f"读取RAG纯文本材料库文件{file_path}失败,请检查文件路径或文件内容")
+     
+     #再建立段落处理循环
+     raw_paragraphs = []
+     for raw_text in raw_texts:
+          paragraphs = raw_text.split("\n\n")
+          paragraphs = [p.strip() for p in paragraphs if p.strip()]
+          raw_paragraphs.append(paragraphs)
+
+     """采用数字编号对不同的RAG纯文本材料(已分段)进行索引:(存在于raw_paragraphs中)
        网安知识: 0
        法律法规: 1
        法律案例: 2
      """
      #2.初始化索引器
-     embedding_generator = Embedding(bert_uncased_model_name)#向量生成器
-     faiss_indexer_net = FaissIndexer()#网安知识索引器
-     faiss_indexer_laws = FaissIndexer()#法律索引器
-     faiss_indexer_cases = FaissIndexer()#案例索引器
-
+     faiss_indexer_net = FaissIndexer()#初始化网安索引器  
+     faiss_indexer_laws = FaissIndexer()#初始化法律索引器
+     faiss_indexer_cases = FaissIndexer()#初始化案例索引器
 
      #初始化对话历史记录
      answer_count = 0
@@ -152,7 +207,7 @@ def main():
      print(logo)
 
      while True:  # 主程序循环
-          order = input(f"欢迎使用{bot_name}!，请输入指令: ")
+          order = input(f"欢迎使用{bot_name}!，请输入指令(-h为帮助,输入q退出): ")
           order_parts = list(order.split())  # 先将分割结果存储在变量中
 
           # 帮助指令
@@ -239,7 +294,7 @@ def main():
                     print(f"欢迎进入用户{user_id}的会话{session_id}，请输入指令: ")
                     while True:
                          # 读取用户输入
-                         user_input = input("请输入你的问题(输入'q'退出): ")
+                         user_input = input("\n请输入你的问题(输入'q'退出): ")
                          if user_input.lower() == "q":
                               break
 
@@ -253,25 +308,24 @@ def main():
                          response_generator = ResponseGenerator(model_A)
                          if predicted_label == 0:
                               response, template = response_generator.generate_response_dailys(user_id, session_id, user_input, return_template=True)
-                              print(response)
+                              
                          elif predicted_label == 1:
                               response, template = response_generator.generate_response_nets(user_id, session_id, user_input, 
                                                                                              net_faisser_indexer = faiss_indexer_net,
-                                                                                              raw_paragraphs_nets = raw_paragraphs[0],
+                                                                                              rag_paragraphs_nets = raw_paragraphs[0],
                                                                                              return_template=True)
-                              print(response)
+                              
                          elif predicted_label == 2:
                               response, template = response_generator.generate_response_laws(user_id, session_id, user_input, 
-                                                                                             laws_faisser_indexer = faiss_indexer_laws, cases_faiss_indexer = faiss_indexer_cases,
-                                                                                             raw_paragraphs_laws = raw_paragraphs[1], rag_paragraphs_cases = raw_paragraphs[2],
+                                                                                             laws_faiss_indexer = faiss_indexer_laws, cases_faiss_indexer = faiss_indexer_cases,
+                                                                                             rag_paragraphs_laws = raw_paragraphs[1], rag_paragraphs_cases = raw_paragraphs[2],
                                                                                              return_template=True)
-                              print(response)
+     
                          elif predicted_label == 3:
                               response, template = response_generator.analyze_case_with_law(user_id, session_id, user_input, 
-                                                                                             cases_faisser_indexer = faiss_indexer_cases, cases_faiss_indexer = faiss_indexer_laws, 
-                                                                                             raw_paragraphs_cases = raw_paragraphs[2], rag_paragraphs_laws = raw_paragraphs[1],
+                                                                                             case_faiss_indexer = faiss_indexer_cases, law_faiss_indexer = faiss_indexer_laws, 
+                                                                                             rag_paragraphs_cases = raw_paragraphs[2], rag_paragraphs_laws = raw_paragraphs[1],
                                                                                              return_template=True)
-                              print(response)
 
                          # 调试日志
                          if debug_mode:
@@ -281,7 +335,7 @@ def main():
                                    f.write("-" * 50 + "\n")
                                    f.write(f"用户输入: {user_input}\n")
                                    f.write("-" * 50 + "\n")
-                                   f.write(f"第{answer_count}次回答: {answer}\n")
+                                   f.write(f"第{answer_count}次回答: {response}\n")
                                    f.write("-" * 50 + "\n")
                                    f.write(f"朴素贝叶斯预测标签:{predicted_label}\n")
                                    f.write("-" * 50 + "\n")
