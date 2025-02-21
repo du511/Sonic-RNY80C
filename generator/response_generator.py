@@ -20,7 +20,7 @@ class ResponseGenerator:
         input_embedding = embedding_generator.get_embedding(input_text)
         faiss_indexer.build_index(rag_paragraphs, embedding_generator)#建立索引
         unique_id_laws = faiss_indexer.search_index(input_embedding)#搜索并获取索引
-        relevant_texts = list(set([rag_paragraphs[i] for i in unique_id_laws[0]]))#获得相关文本
+        relevant_texts = list(set([rag_paragraphs[i] for i in (unique_id_laws[0] if isinstance(unique_id_laws[0], list) else [unique_id_laws[0]])]))
         return relevant_texts#返回相关文本
     
 
@@ -86,7 +86,7 @@ class ResponseGenerator:
         """(主程序传参)传入的参数有:用户id,会话id,用户输入,
         net_faiss工具库,RAG的纯文本,返回template的开关
         """
-        embedding_generator = Embedding("bert-base-uncased")#初始化向量生成器
+        embedding_generator = Embedding("bert-base-chinese")#初始化向量生成器
         relevant_net_texts = self.get_relevant_texts(question, embedding_generator, rag_paragraphs_nets, net_faisser_indexer)#获取相关文本,接下传入链式结构
         role = f""" 
         你是{bot_name},一个网络安全AI机器人。
@@ -160,7 +160,7 @@ class ResponseGenerator:
         相关RAG文本的生成:RAG相关纯文本,两种faiss工具库,以及准备生成为索引的纯文本材料。
         以及返回template的开关
         """
-        embedding_generator = Embedding("bert-base-uncased")  # 初始化向量生成器
+        embedding_generator = Embedding("bert-base-chinese")  # 初始化向量生成器
 
         relevant_laws = self.get_relevant_texts(question, embedding_generator, rag_paragraphs_laws,
                                                 laws_faiss_indexer)  # 获取相关文本,接下传入链式结构
@@ -340,7 +340,7 @@ class ResponseGenerator:
                               case_faiss_indexer, law_faiss_indexer,
                               rag_paragraphs_cases, rag_paragraphs_laws,
                               return_template=True):
-        embedding_generator = Embedding("bert-base-uncased")
+        embedding_generator = Embedding("bert-base-chinese")
 
         # 检索相关案子
         relevant_cases = self.get_relevant_texts(case_description, embedding_generator, rag_paragraphs_cases,
