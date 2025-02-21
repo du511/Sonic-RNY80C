@@ -57,33 +57,45 @@ def load_last_filename():
      return None, None, None
 
 def process_library_folder(folder_path, library_name):
-     document_reader = DocumentReader()#读取器
-     all_text = ""
-     for root, dirs, files in os.walk(folder_path):
-          for file in files:
-               file_path = os.path.splitext(file)[1].lower()
-               if file_path in [".pdf", ".docx", ".txt"]:
-                    file_path = os.path.join(root, file)
-                    text = document_reader.read_file(file_path)
-                    all_text += text
-     # 将所有文本按段落分割
-     paragraphs = all_text.split("\n\n")
-     # 去除空段落
-     paragraphs = [p.strip() for p in paragraphs if p.strip()]
+    document_reader = DocumentReader()  # 读取器
+    paragraphs = []  # 保持原来的变量名
 
-     # 将处理后的文本保存到库内的 txt 文件
-     base_folder = "docs"
-     if not os.path.exists(base_folder):
-        os.makedirs(base_folder)
-     output_folder = os.path.join(base_folder, library_name)
-     if not os.path.exists(output_folder):
+    # 定义输出文件的完整路径
+    base_folder = "docs"
+    output_folder = os.path.join(base_folder, library_name)
+    output_file_path = os.path.join(output_folder, f"{library_name}_rag_data.txt")
+
+    # 如果输出文件夹不存在，创建它
+    if not os.path.exists(output_folder):
         os.makedirs(output_folder)
-     output_file_path = os.path.join(output_folder, f"{library_name}_rag_data.txt")
-     with open(output_file_path, 'w', encoding='utf-8') as f:
-          for paragraph in paragraphs:
-               f.write(paragraph + "\n\n")
 
-     return paragraphs#输出的结果是多个段落并非是文本
+    # 如果输出文件已存在，先删除
+    if os.path.exists(output_file_path):
+        os.remove(output_file_path)
+
+    # 遍历文件夹中的文件
+    for root, dirs, files in os.walk(folder_path):
+        for file in files:
+            file_extension = os.path.splitext(file)[1].lower()
+            # 检查文件扩展名是否为支持的格式
+            if file_extension in [".pdf", ".docx", ".txt"]:
+                # 构造文件的完整路径
+                file_path = os.path.join(root, file)
+                # 排除目标输出文件本身被处理的情况
+                if file_path != output_file_path:
+                    text = document_reader.read_file(file_path)
+                    # 将文件内容的换行替换为两个空格，并确保整个文件内容在一行内
+                    text = text.replace("\n", "  ")
+                    # 在段落前加上文件名
+                    formatted_text = f"{file}: {text}"
+                    paragraphs.append(formatted_text)  # 添加到列表中
+
+    # 将处理后的文本保存到目标文件
+    with open(output_file_path, 'w', encoding='utf-8') as f:
+        for paragraph in paragraphs:
+            f.write(paragraph + "\n\n")  # 每个文件内容之间用一个空行分隔
+
+    return paragraphs  # 返回处理后的文本列表
 
 def main():
      #是否为调试模式
