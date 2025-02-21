@@ -1,16 +1,16 @@
 from typing import List
 from langchain_core.chat_history import BaseChatMessageHistory
-from langchain_core.messages import BaseMessage
+from langchain_core.messages import BaseMessage, HumanMessage,AIMessage
 from pydantic import BaseModel, Field
 import sqlite3
 import queue
 
 
 class SQLiteConnectionPool:
-    def __init__(self, db_path, pool_size=5):
+    def __init__(self, db_path, pool_size = 5):
         self.db_path = db_path
         self.pool_size = pool_size
-        self.pool = queue.Queue(maxsize=pool_size)
+        self.pool = queue.Queue(maxsize = pool_size)
         for _ in range(pool_size):
             conn = sqlite3.connect(db_path)
             self.pool.put(conn)
@@ -37,9 +37,9 @@ class ControlChatHistoryData:
 
     def __init__(self):
         """构建并连接数据库"""
-        self.connection_pool = SQLiteConnectionPool('./generator/database/chat_history.db')
-        self.conn = sqlite3.connect('./generator/database/chat_history.db')
-        self.cursor = self.conn.cursor()
+        self.connection_pool = SQLiteConnectionPool('./generator/database/chat_history.db')#初始化并列的类
+        self.conn = self.connection_pool.get_connection()
+        self.cursor = self.conn.cursor() #临时变量才对
         # 修改表结构，添加消息内容、类型和序号列
         self.cursor.execute('''CREATE TABLE IF NOT EXISTS chat_history (
                user_id TEXT,
@@ -50,8 +50,8 @@ class ControlChatHistoryData:
                PRIMARY KEY (user_id, session_id, message_index)
                )''')
         self.conn.commit()  # 保存数据库
+        self.connection_pool.release_connection(self.conn)
         
-
     def add_history(self, user_id: str, session_id: str, history: InMemoryMessageHistory) -> None:
         """将对话记录存入数据库"""
         conn = self.connection_pool.get_connection()
@@ -80,42 +80,33 @@ class ControlChatHistoryData:
             rows = cursor.fetchall()
             messages = []
             for content, msg_type in rows:
-                if content is not None and msg_type is not None:
-                    messages.append(BaseMessage(content=content, type=msg_type))
-            if messages:
-                history = self.InMemoryMessageHistory(messages=messages)
-                return history
-            else:
-                placeholder = self.InMemoryMessageHistory()
-                placeholder_u_message = BaseMessage(content="No history found for this session.", type='user')
-                placeholder_ai_message = BaseMessage(content="No history found for this session.", type='assistant')
-                placeholder.add_message(placeholder_u_message)
-                placeholder.add_message(placeholder_ai_message)
-                self.add_history(input_user_id, input_session_id, placeholder)
-            print("历史记录获取成功！")
+                if msg_type == 'human':
+                    messages.append(HumanMessage(content = content))
+                elif msg_type == 'assistant':
+                    messages.append(AIMessage(content = content))
+            return self.InMemoryMessageHistory(messages = messages)
         except Exception as e:
-            print(f"历史记录获取失败！{e}")
+            print(f"历史记录获取失败！/为空！Error: {e}")
+            return self.InMemoryMessageHistory()#直接返回空的代替占位符
         finally:
             self.connection_pool.release_connection(conn)
-            return self.InMemoryMessageHistory()
 
     def update_session_history(self, user_id: str, session_id: str, user_message: str, assistant_message: str):
         """更新指定用户和其指定的聊天历史记录"""
-        if user_message is None:
-            user_message = ""
-        if assistant_message is None:
-            assistant_message = ""
-        updated_history = self.InMemoryMessageHistory()
-        new_user_message = BaseMessage(content=user_message, type='user')
-        new_assistant_message = BaseMessage(content=assistant_message, type='assistant')
-        updated_history.add_message(new_user_message)
-        updated_history.add_message(new_assistant_message)
-
         conn = self.connection_pool.get_connection()
-        cursor = conn.cursor()
         try:
-            self.add_history(user_id, session_id, updated_history)
-            print("历史记录更新成功！")
+            #先获取历史记录,再在原基础上添加新消息
+            existing = self.get_session_history(user_id, session_id)
+            existing.add_message(HumanMessage(content = user_message))
+            existing.add_message(AIMessage(content = assistant_message))
+
+            #"原子化"操作
+            with conn:
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM chat_history WHERE user_id=? AND session_id=?", (user_id, session_id))
+                for index, message in enumerate(existing.messages):
+                    conn.execute("INSERT INTO chat_history (user_id, session_id, message_index, message_content, message_type) VALUES (?,?,?,?,?)",
+                                 (user_id, session_id, index, message.content, message.type))
         except Exception as e:
             print(f"历史记录更新失败！{e}")
         finally:

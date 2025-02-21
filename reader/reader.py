@@ -9,9 +9,9 @@ class DocumentReader:
         try:
             with open(file_path, 'rb') as f:
                 text = ''
-                pdf_reader = PyPDF2.PdfFileReader(f)
+                pdf_reader = PyPDF2.PdfReader(f)
                 for page in pdf_reader.pages:
-                    text += page
+                    text += page.extract_text()
                 return text
         except Exception as e:
             print(f"Error while reading pdf file: {e}")
@@ -52,6 +52,4 @@ class DocumentReader:
             return DocumentReader.read_txt(file_path)
         else:
             print(f"Unsupported file type: {file_extension}")
-            return ''
-        
-
+            return ''      

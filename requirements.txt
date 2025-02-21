@@ -10,3 +10,4 @@ jieba
 joblib
 sklearn
 imbalanced-learn
+langchain
