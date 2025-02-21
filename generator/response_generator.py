@@ -353,6 +353,10 @@ class ResponseGenerator:
         仅使用用户的语言进行对话，提供准确、专业的法律分析。
         """
 
+        print("-" * 50)
+        print("分析过程：")
+        print("-" * 50)
+
         # 生成法律分析的内部函数
         def generate_law_analysis():
             template_law_analysis = f"""
@@ -461,6 +465,13 @@ class ResponseGenerator:
                 return None, None
             else:
                 return None, " "
+
+        print("-" * 50)
+        print("分析过程结束")
+        print("-" * 50)
+
+        print("最终结果：")
+        print(final_analysis.content)
 
         if return_template:
             return final_analysis, template_final_analysis

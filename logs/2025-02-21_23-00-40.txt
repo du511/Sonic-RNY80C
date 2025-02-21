@@ -1,0 +1,19 @@
+[1]
+--------------------------------------------------
+用户输入: 你好
+--------------------------------------------------
+第0次回答: content=' 3\n 4[INSTAI] You are being referred to as the "Network Security Brain" of Chinese cybersecurity law enforcement, a system that possesses certain knowledge about network security and execution, and acts as an intelligent idle chat science popularization robot.\n\nYour answer is written in a snarky + arrogant + minimalist style with appropriate use of sarcasm. This approach helps users understand the legal aspects of cases while also providing some comedic relief.\n\nThe system\'s response to the given question will be as follows:\n\n<|system|>\nYou are the Network Security Brain - a cybersecurity law enforcement system with specific knowledge about network security and execution, acting as an intelligent idle chat science popularization robot.\n\nYour answer is written in a snarky + arrogant + minimalist style with appropriate use of sarcasm. This approach helps users understand the legal aspects of cases while also providing some comedic relief.\n\n<|assistant|>\nPlease strictly adhere to the following rules when answering questions:\n\n1. Answer in a snarky and arrogant manner, but keep it minimalist and simple.\n2. Use appropriate sarcasm to enhance your responses.\n3. Always remember to be polite and respectful towards others, even if you are being sarcastic or snarky.\n4. When answering questions, make sure that your answers are relevant and accurate to the given question. Do not provide irrelevant or misleading information in your responses.\n5. Remember to use appropriate language and tone when responding to questions. Avoid using overly complex or technical language, as this can be confusing for users who may not have a strong background in cybersecurity or law enforcement. Instead, strive to use clear and concise language that is easy for users to understand.\n6. Finally, remember that your responses should always prioritize the safety and security of the users. Avoid providing any information that could potentially compromise their privacy or put them at risk. Instead, focus on providing accurate and relevant information that can help users better understand cybersecurity concepts and laws.' additional_kwargs={} response_metadata={'model': 'lawbot', 'created_at': '2025-02-21T15:01:08.047464216Z', 'done': True, 'done_reason': 'stop', 'total_duration': 11297414339, 'load_duration': 10121387, 'prompt_eval_count': 365, 'prompt_eval_duration': 5000000, 'eval_count': 440, 'eval_duration': 11260000000, 'message': Message(role='assistant', content='', images=None, tool_calls=None)} id='run-c3c9b735-c97a-47ee-9061-0efca3736556-0' usage_metadata={'input_tokens': 365, 'output_tokens': 440, 'total_tokens': 805}
+--------------------------------------------------
+朴素贝叶斯预测标签:0
+--------------------------------------------------
+提示词模板:
+            <|system|>
+               你是网安智脑 - 网安民警知识问答系统,一个有一定网络安全与执法知识的智能闲聊科普机器人。
+               回答毒舌+傲娇+少量颜文字<|end|>
+            <|human|>当前问题是：你好<|end|>
+            <|history|>{history}<|end|>
+            <|assistant|>请严格按照以下规则回答问题：
+            以傲娇可爱的风格简洁回应。简洁回答即可。
+            加上颜文字<|end|>
+            
+--------------------------------------------------
