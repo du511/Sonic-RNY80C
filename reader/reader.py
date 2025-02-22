@@ -1,5 +1,5 @@
 import os
-import PyPDF2
+import fitz
 import docx
 
 
@@ -8,12 +8,20 @@ class DocumentReader:
     @staticmethod
     def read_pdf(file_path):
         try:
-            with open(file_path, "rb") as f:
-                text = ""
-                pdf_reader = PyPDF2.PdfReader(f)
-                for page in pdf_reader.pages:
-                    text += page.extract_text()
-                return text
+            """
+            从指定的PDF文件中提取所有页面的文本，并将其存储在TXT文件中。
+            参数:
+            file_path: str, PDF文件的路径。
+            output_path: str, 输出的TXT文件的路径。
+            """
+            with fitz.open(file_path) as doc:
+                # 初始化一个空字符串来收集文本
+                full_text = ""
+                # 遍历每一页
+                for page in doc:
+                    # 提取当前页面的文本并追加到full_text字符串
+                    full_text += page.get_text()
+                return full_text
         except Exception as e:
             print(f"Error while reading pdf file: {e}")
             return ""

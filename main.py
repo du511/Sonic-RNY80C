@@ -19,6 +19,7 @@ from naive_bayes_model.naive_bayes_classifier import (
 )  # 引入朴素贝叶斯分类器
 from naive_bayes_model.train_data.train_data import data  # 引入朴素贝叶斯训练数据
 from generator.MyStreamingHandler import MyStreamingHandler  # 引入流式输出系统
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 # 读取配置文件
 config = toml.load("config/parameter.toml")
@@ -108,7 +109,7 @@ def process_library_folder(folder_path, library_name):
                 if file_path != output_file_path:
                     text = document_reader.read_file(file_path)
                     # 将文件内容的换行替换为两个空格，并确保整个文件内容在一行内
-                    text = text.replace("\n", "  ")
+                    text = text.replace("\n\n", "\n")
                     # 在段落前加上文件名
                     formatted_text = f"{file}: {text}"
                     paragraphs.append(formatted_text)  # 添加到列表中
@@ -118,8 +119,18 @@ def process_library_folder(folder_path, library_name):
         for paragraph in paragraphs:
             f.write(paragraph + "\n\n")  # 每个文件内容之间用一个空行分隔
 
-    return paragraphs  # 返回处理后的文本列表
-
+    with open(output_file_path, "r", encoding="utf-8") as f:
+        state_of_the_union = f.read()
+        text_splitter = RecursiveCharacterTextSplitter(
+            # Set a really small chunk size, just to show.
+            chunk_size=300,
+            chunk_overlap=20,
+            length_function=len,
+            is_separator_regex=False,
+        )
+        texts = text_splitter.create_documents([state_of_the_union])
+        texts = " ".join(texts)        
+        f.write(texts)
 
 def main():
     # 是否为调试模式
