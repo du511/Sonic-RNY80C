@@ -131,9 +131,8 @@ def chunk_texts(output_file_path):
             is_separator_regex=False,
         )
         texts = text_splitter.create_documents([state_of_the_union])
-        texts = f"{texts}"        
-        return texts
-    with open(output_file_path, "w", encoding="utf-8") as f:
+        texts = f"{texts}"
+        texts = " ".join(texts)        
         f.write(texts)
 
     
