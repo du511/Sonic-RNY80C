@@ -1,7 +1,7 @@
 [model_A]
 base_url = "http://localhost:11434"
 project_name = "网安智脑 - 网安民警知识问答系统"
-model_name = "lawbot"
+model_name = "LumiEvil"
 temperature = 0.5
 top_p = 0.9
 top_k = 50
@@ -24,7 +24,7 @@ operate指令:
 """
 
 [bert]
-model_name = "bert-base-uncased"
+model_name = "bert-base-chinese"
 
 [pattern]
 logo = """

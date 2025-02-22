@@ -13,6 +13,7 @@ class ResponseGenerator:
     #传入用户相关模型
     def __init__(self, model_A):
         self.model_A = model_A
+        self.model = model_A
     
     #直接定义一个生成相关文本的函数
     def get_relevant_texts(self,input_text, embedding_generator, rag_paragraphs, faiss_indexer ):
@@ -31,12 +32,11 @@ class ResponseGenerator:
                你是{bot_name},一个有一定网络安全与执法知识的智能闲聊科普机器人。
                回答毒舌+傲娇+少量颜文字"""
         template = f"""
-            <|system|>{role}<|end|>
-            <|human|>当前问题是：{question}<|end|>
-            <|history|>{{history}}<|end|>
-            <|assistant|>请严格按照以下规则回答问题：
+            <|system|>{role},请严格按照以下规则回答问题：
             以傲娇可爱的风格简洁回应。简洁回答即可。
             加上颜文字<|end|>
+            <|human|>{question}<|end|>
+            <|history|>上下文记录:{{history}}<|end|>
             """
         prompt = ChatPromptTemplate.from_template(template)
         try:
@@ -95,10 +95,7 @@ class ResponseGenerator:
         """
         relevant_net_texts = "\n".join(relevant_net_texts)       
         template = f"""
-            <|system|>{role}<|end|>
-            <|human|>当前问题：{question}<|end|>
-            <|history|>{{history}}<|end|>
-            <|assistant|>请严格按照以下优先级处理问题：
+            <|system|>{role},请严格按照以下优先级处理问题：
             1. 优先判断问题类型：若用户进行寒暄/无关提问（如问候、天气等），别管{relevant_net_texts}相关内容。
             2. 网络安全问题处理：当且仅当问题涉及网络安全时：
             确保回答准确简洁，剔除无关技术细节
@@ -108,6 +105,8 @@ class ResponseGenerator:
             相关RAG文档内容：
             {relevant_net_texts}这些内容只有在问题出现与其中内容相关的时候才使用对应内容
             加上颜文字<|end|>
+            <|human|>{question}<|end|>
+            <|history|>上下文记录:{{history}}<|end|>
             """
         prompt = ChatPromptTemplate.from_template(template)
         try:
@@ -173,16 +172,18 @@ class ResponseGenerator:
         并且尽力列出法律条文相关案例，以便更准确地让用户理解法律条文。
         """
         rag_laws_context = '\n'.join(relevant_laws)
+        print("-" * 50)
+        print("分析过程：")
+        print("-" * 50)
 
         # 生成法律解答的内部函数
         def generate_law_answer():
             template_law = f"""
-            <|system|>{role}<|end|>
-            <|human|>当前问题：{question}<|end|>
-            <|history|>{{history}}<|end|>
-            <|assistant|>请根据以下相关法律条文解答问题：
+            <|system|>{role},请根据以下相关法律条文解答问题：
             {rag_laws_context}
             回答需准确简洁，剔除无关技术细节。<|end|>
+            <|human|>{question}<|end|>
+            <|history|>上下文记录:{{history}}<|end|>
             """
             prompt_law = ChatPromptTemplate.from_template(template_law)
             history_control = ControlChatHistoryData()
@@ -221,6 +222,12 @@ class ResponseGenerator:
             return law_answer
 
         law_answer = generate_law_answer()
+                
+        print("\n")
+        print("-" * 50)
+        print("分析结束")
+        print("-" * 50)
+
         if law_answer is None:
             if return_template:
                 return None, None
@@ -230,10 +237,10 @@ class ResponseGenerator:
         # 生成案例信息的内部函数
         def generate_case_info():
             template_case = f"""
-            <|system|>{role}<|end|>
-            <|human|>根据以下法律解答找出相关案例：{law_answer.content}<|end|>
-            <|history|>{{history}}<|end|>
-            <|assistant|>只输出相关案例信息。<|end|>
+            <|system|>{role},只输出相关案例信息。<|end|>
+            <|human|>根据以下法律解答找出相关案例：{law_answer.content}
+            用户问题:{question}<|end|>
+            <|history|>上下文记录:{{history}}<|end|>
             """
             prompt_case = ChatPromptTemplate.from_template(template_case)
             history_control = ControlChatHistoryData()
@@ -284,15 +291,15 @@ class ResponseGenerator:
         # 最后的回答系统
         rag_cases_context = '\n'.join(relevant_cases)
         template_final = f"""
-        <|system|>{role}<|end|>
-        <|human|>根据以下法律条文和相关案例进行总结回答：
-        法律条文：{rag_laws_context}
-        相关案例：{rag_cases_context}
-        <|history|>{{history}}<|end|>
-        <|assistant|>请按照以下格式输出回答：
+        <|system|>{role},请按照以下格式输出回答：
         法律 xx 条是什么什么(基本信息), 意义是 xx, 适用于 xx
         相关案例是: xx
         回答必须要根据相关案例解释法律条文使用户更容易理解。<|end|>
+        <|human|>根据以下法律条文和相关案例进行总结回答：
+        法律条文：{rag_laws_context}
+        相关案例：{rag_cases_context}
+        用户问题: {question}
+        <|history|>上下文记录:{{history}}<|end|>
         """
         prompt_final = ChatPromptTemplate.from_template(template_final)
         history_control = ControlChatHistoryData()
@@ -330,6 +337,7 @@ class ResponseGenerator:
             history_control.update_session_history(input_user_id, input_session_id, question,
                                                    final_answer.content)
 
+
         if return_template:
             return final_answer, template_final
         else:
@@ -360,10 +368,10 @@ class ResponseGenerator:
         # 生成法律分析的内部函数
         def generate_law_analysis():
             template_law_analysis = f"""
-            <|system|>{role}<|end|>
-            <|human|>请根据以下相关案子找出适用的法律并分析：{relevant_cases_text}<|end|>
-            <|history|>{{history}}<|end|>
-            <|assistant|>请详细阐述适用的法律以及分析过程，准确且有条理。<|end|>
+            <|system|>{role},详细阐述适用的法律以及分析过程，准确且有条理。<|end|>
+            <|human|>请根据以下相关案子找出适用的法律并分析：{relevant_cases_text}
+            用户问题:{case_description}<|end|>
+            <|history|>上下文记录:{{history}}<|end|>
             """
             prompt_law_analysis = ChatPromptTemplate.from_template(template_law_analysis)
             history_control = ControlChatHistoryData()
@@ -416,12 +424,12 @@ class ResponseGenerator:
         # 生成最终分析的内部函数
         def generate_final_analysis():
             template_final_analysis = f"""
-            <|system|>{role}<|end|>
+            <|system|>{role},请综合分析，详细阐述法律条文如何应用于案子，以及案子的法律依据和结论。<|end|>
             <|human|>请根据以下相关案子和法律条文对案子进行全面的法律分析：
             相关案子：{relevant_cases_text}
             相关法律条文：{relevant_laws_text}<|end|>
-            <|history|>{{history}}<|end|>
-            <|assistant|>请综合分析，详细阐述法律条文如何应用于案子，以及案子的法律依据和结论。<|end|>
+            用户问题:{case_description}
+            <|history|>上下文记录:{{history}}<|end|>
             """
             prompt_final_analysis = ChatPromptTemplate.from_template(template_final_analysis)
             history_control = ControlChatHistoryData()
@@ -465,7 +473,7 @@ class ResponseGenerator:
                 return None, None
             else:
                 return None, " "
-
+        print("\n")
         print("-" * 50)
         print("分析过程结束")
         print("-" * 50)
