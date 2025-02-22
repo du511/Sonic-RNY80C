@@ -119,6 +119,8 @@ def process_library_folder(folder_path, library_name):
         for paragraph in paragraphs:
             f.write(paragraph + "\n\n")  # 每个文件内容之间用一个空行分隔
 
+#对文件进行分段处理
+def chunk_texts(output_file_path):
     with open(output_file_path, "r", encoding="utf-8") as f:
         state_of_the_union = f.read()
         text_splitter = RecursiveCharacterTextSplitter(
@@ -129,8 +131,12 @@ def process_library_folder(folder_path, library_name):
             is_separator_regex=False,
         )
         texts = text_splitter.create_documents([state_of_the_union])
-        texts = " ".join(texts)        
+        texts = f"{texts}"        
+        return texts
+    with open(output_file_path, "w", encoding="utf-8") as f:
         f.write(texts)
+
+    
 
 def main():
     # 是否为调试模式
@@ -177,9 +183,14 @@ def main():
     save_last_filename(net_file_path, laws_file_path, cases_file_path)
 
     # 对每个库的文件夹进行处理:
-    net_paragraphs = process_library_folder(net_file_path, "net")
-    law_paragraphs = process_library_folder(laws_file_path, "laws")
-    case_paragraphs = process_library_folder(cases_file_path, "cases")
+    process_library_folder(net_file_path, "net")
+    process_library_folder(laws_file_path, "laws")
+    process_library_folder(cases_file_path, "cases")
+
+    #分块处理
+    chunk_texts(net_file_path)
+    chunk_texts(laws_file_path)
+    chunk_texts(cases_file_path)
 
     """以下是主程序里的RAG部分:
        1. 读取RAG纯文本材料库
