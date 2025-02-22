@@ -129,6 +129,7 @@ def process_library_folder(folder_path, library_name):
             is_separator_regex=False,
         )
         texts = text_splitter.create_documents([state_of_the_union])
+        texts = f"{texts}"
         texts = " ".join(texts)        
         f.write(texts)
 
