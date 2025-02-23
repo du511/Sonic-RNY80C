@@ -10,19 +10,16 @@ import toml
 config = toml.load("config/parameter.toml")
 bot_name = config["model_A"]["project_name"]
 
-
 class ResponseGenerator:
-
-    # 传入用户相关模型
     def __init__(self, model_A):
         self.model_A = model_A
         self.model = model_A
 
-    # 直接定义一个生成相关文本的函数
+    # 获取相关文本的通用方法
     def get_relevant_texts(
         self, input_text, embedding_generator, rag_paragraphs, faiss_indexer
     ):
-        """传入的参数有:用户输入,向量生成器,RAG的纯文本,faiss数据库索引工具"""
+        """传入的参数有：用户输入、向量生成器、RAG的纯文本、faiss数据库索引工具"""
         input_embedding = embedding_generator.get_embedding(input_text)
         faiss_indexer.build_index(rag_paragraphs, embedding_generator)  # 建立索引
         unique_id_laws = faiss_indexer.search_index(input_embedding)  # 搜索并获取索引
@@ -103,27 +100,33 @@ class ResponseGenerator:
             else:
                 return ""
 
-    # 网络安全问题回答(直接回答)
+    # 网络安全问题回答
     def generate_response_nets(
         self,
         input_user_id,
         input_session_id,
         question,
-        net_faisser_indexer,
+        net_faiss_indexer,
         rag_paragraphs_nets,
         return_template=True,
     ):
-        """(主程序传参)传入的参数有:用户id,会话id,用户输入,
-        net_faiss工具库,RAG的纯文本,返回template的开关
-        """
         embedding_generator = Embedding("bert-base-chinese")  # 初始化向量生成器
+
+        # 优先检索网络安全相关条文
         relevant_net_texts = self.get_relevant_texts(
-            question, embedding_generator, rag_paragraphs_nets, net_faisser_indexer
-        )  # 获取相关文本,接下传入链式结构
+            question, embedding_generator, rag_paragraphs_nets, net_faiss_indexer
+        )  # 获取相关文本
+
+        # 如果检索结果为空，尝试从通用知识库中检索
+        if not relevant_net_texts:
+            relevant_net_texts = self.get_relevant_texts(
+                question, embedding_generator, rag_paragraphs_nets, net_faiss_indexer
+            )
+
         role = f""" 
         你是{bot_name},一个网络安全AI机器人。
         在回答用户问题前，必须优先参考之前的对话历史记录。若历史记录中有相关信息，要基于此准确作答。
-        根据指示使用RAG文档或独立回答,与用户聊天对话,仅使用用户的语言进行对话
+        根据指示使用RAG文档或独立回答，仅使用用户的语言进行对话
         """
         relevant_net_texts = "\n".join(relevant_net_texts)
         template = f"""
@@ -131,7 +134,7 @@ class ResponseGenerator:
             1. 优先判断问题类型：若用户进行寒暄/无关提问（如问候、天气等），别管{relevant_net_texts}相关内容。
             2. 网络安全问题处理：当且仅当问题涉及网络安全时：
             确保回答准确简洁，剔除无关技术细节
-            不需要做任何解释,直接回答即可
+            不需要做任何解释，直接回答即可
             网络安全问题处理：当且仅当问题涉及网络安全时：
             结合以下RAG文档中的专业信息
             相关RAG文档内容：
@@ -190,8 +193,7 @@ class ResponseGenerator:
             else:
                 return ""
 
-    # 前面两个参数还是为了对实现账户管理系统,我需要对faiss数据库进行传入,
-    # 这里我先做法律回答生成系统
+    # 法律问题回答生成系统
     def generate_response_laws(
         self,
         input_user_id,
@@ -203,17 +205,19 @@ class ResponseGenerator:
         rag_paragraphs_cases,
         return_template=True,
     ):
-        """(主程序传参)传入的参数有:用户id,会话id,用户输入,
-        相关RAG文本的生成:RAG相关纯文本,两种faiss工具库,以及准备生成为索引的纯文本材料。
-        以及返回template的开关
-        """
         embedding_generator = Embedding("bert-base-chinese")  # 初始化向量生成器
 
+        # 优先检索法律条文
         relevant_laws = self.get_relevant_texts(
             question, embedding_generator, rag_paragraphs_laws, laws_faiss_indexer
-        )  # 获取相关文本,接下传入链式结构
+        )  # 获取相关法律条文
 
-        # 直接把中间结果输出封装为函数,便于隐藏
+        # 如果法律条文检索结果为空，尝试检索案例
+        if not relevant_laws:
+            relevant_laws = self.get_relevant_texts(
+                question, embedding_generator, rag_paragraphs_cases, cases_faiss_indexer
+            )  # 获取相关案例作为补充
+
         role = f""" 
         你是{bot_name},一个专业的法律解答助手。
         在回答用户问题前，必须优先参考之前的对话历史记录。若历史记录中有相关信息，要基于此准确作答。
@@ -428,13 +432,15 @@ class ResponseGenerator:
     ):
         embedding_generator = Embedding("bert-base-chinese")
 
-        # 检索相关案子
+        # 优先检索相关案例
         relevant_cases = self.get_relevant_texts(
-            case_description,
-            embedding_generator,
-            rag_paragraphs_cases,
-            case_faiss_indexer,
+            case_description, embedding_generator, rag_paragraphs_cases, case_faiss_indexer
         )
+        if not relevant_cases:
+            relevant_cases = self.get_relevant_texts(
+                case_description, embedding_generator, rag_paragraphs_laws, law_faiss_indexer
+            )
+
         relevant_cases_text = "\n".join(relevant_cases)
 
         role = f"""
