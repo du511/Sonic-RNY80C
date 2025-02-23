@@ -1,5 +1,5 @@
 import os
-import PyPDF2
+import fitz  # PyMuPDF
 import docx
 
 
@@ -8,12 +8,13 @@ class DocumentReader:
     @staticmethod
     def read_pdf(file_path):
         try:
-            with open(file_path, "rb") as f:
-                text = ""
-                pdf_reader = PyPDF2.PdfReader(f)
-                for page in pdf_reader.pages:
-                    text += page.extract_text()
-                return text
+            doc = fitz.open(file_path)  # 打开PDF文件
+            text = ""
+            for page_num in range(len(doc)):  # 遍历每一页
+                page = doc.load_page(page_num)  # 加载当前页面
+                text += page.get_text()  # 提取文本内容
+            doc.close()  # 关闭文档
+            return text
         except Exception as e:
             print(f"Error while reading pdf file: {e}")
             return ""
@@ -21,13 +22,11 @@ class DocumentReader:
     @staticmethod
     def read_docx(file_path):
         try:
-            with open(file_path, "rb") as f:
-                text = ""
-                doc = docx.Document(f)
-                for para in doc.paragraphs:
-                    for run in para.runs:
-                        text += run.text
-                return text
+            doc = docx.Document(file_path)  # 打开Word文档
+            text = ""
+            for para in doc.paragraphs:  # 遍历每个段落
+                text += para.text + "\n"  # 添加段落内容并换行
+            return text
         except Exception as e:
             print(f"Error while reading docx file: {e}")
             return ""

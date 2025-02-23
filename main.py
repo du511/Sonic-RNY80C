@@ -107,16 +107,21 @@ def process_library_folder(folder_path, library_name):
                 # 排除目标输出文件本身被处理的情况
                 if file_path != output_file_path:
                     text = document_reader.read_file(file_path)
-                    # 将文件内容的换行替换为两个空格，并确保整个文件内容在一行内
-                    text = text.replace("\n", "  ")
-                    # 在段落前加上文件名
-                    formatted_text = f"{file}: {text}"
+                    # 按换行符分割文本
+                    lines = text.split("\n")
+                    formatted_lines = []
+                    for line in lines:
+                        # 为每一行加上文件名
+                        formatted_line = f"{file}: {line}"
+                        formatted_lines.append(formatted_line)
+                    # 将处理后的行重新组合为一个字符串，每行之间用换行符分隔，并在每个文件内容后添加一个空行
+                    formatted_text = "\n\n".join(formatted_lines) + "\n\n"
                     paragraphs.append(formatted_text)  # 添加到列表中
 
     # 将处理后的文本保存到目标文件
     with open(output_file_path, "w", encoding="utf-8") as f:
         for paragraph in paragraphs:
-            f.write(paragraph + "\n\n")  # 每个文件内容之间用一个空行分隔
+            f.write(paragraph)
 
     return paragraphs  # 返回处理后的文本列表
 

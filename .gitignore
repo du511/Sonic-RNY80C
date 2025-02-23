@@ -1,0 +1,15 @@
+# 忽略日志文件夹中的所有文件，但保留库名、路径和上次用户ID的文件
+logs/*.txt
+!logs/library_name.json
+!logs/library_paths.json
+!logs/last_user_id.txt
+
+# 忽略数据库文件
+generator/database/*.db
+
+# 忽略二进制缓存文件
+**/__pycache__/
+**/*.pyc
+
+# 忽略自动生成的缓存文件
+*.cache

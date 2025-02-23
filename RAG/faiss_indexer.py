@@ -24,7 +24,7 @@ class FaissIndexer:
             print("Error in FaissIndexer:", e)
             return None
 
-    def search_index(self, query_embedding, top_k=5):  # 搜索索引
+    def search_index(self, query_embedding, top_k=20):  # 搜索索引
         if self.index is None:
             print("Faiss index is not built yet.")
             return None
